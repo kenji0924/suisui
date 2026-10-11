@@ -98,6 +98,7 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
   <div class="row">
     <button class="primary" id="fs">全画面で表示</button>
     <button id="hideTray">パネルを隠す</button>
+    <button id="snd" aria-pressed="true">🔊 音あり</button>
     <span class="count" id="count"></span>
   </div>
 </section>
@@ -275,6 +276,97 @@ function loop(t) {
   requestAnimationFrame(loop);
 }
 
+/* ---------- sound: everything is synthesised in the browser (no audio files) ----------
+   Browsers only allow sound after the first tap, so audio starts on the first touch/click.
+   BGM = a soft music-box tune over a slow chord loop, with an underwater filter. */
+const SND = (() => {
+  let ac = null, master, bgmBus, sfxBus, on = true, bgmTimer = null, nextT = 0, step = 0;
+  try { on = localStorage.getItem('suisui-sound') !== 'off'; } catch (_) {}
+  const STEP = .34, CHORDS = [[60, 64, 67, 72], [57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67]]; // C Am F G
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  function init() {
+    if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    ac = new AC();
+    master = ac.createGain(); master.gain.value = on ? .7 : 0; master.connect(ac.destination);
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.connect(master);
+    bgmBus = ac.createGain(); bgmBus.gain.value = .22; bgmBus.connect(lp);
+    sfxBus = ac.createGain(); sfxBus.gain.value = .55; sfxBus.connect(master);
+    nextT = ac.currentTime + .1;
+    bgmTimer = setInterval(scheduleBgm, 90);
+  }
+  // one note: type, freq (or [from, to] for a slide), start offset, duration, volume
+  function tone(type, f, at = 0, dur = .2, vol = .3, bus = sfxBus, attack = .005) {
+    if (!ac) return;
+    const t = ac.currentTime + at, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type;
+    if (Array.isArray(f)) { o.frequency.setValueAtTime(f[0], t); o.frequency.exponentialRampToValueAtTime(f[1], t + dur); }
+    else o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + .05);
+  }
+  let noiseBuf = null;
+  function noise(at = 0, dur = .2, vol = .3, f0 = 1200, f1 = 400, q = 1) {
+    if (!ac) return;
+    if (!noiseBuf) { noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    const t = ac.currentTime + at, s = ac.createBufferSource(), bp = ac.createBiquadFilter(), g = ac.createGain();
+    s.buffer = noiseBuf; bp.type = 'bandpass'; bp.Q.value = q;
+    bp.frequency.setValueAtTime(f0, t); bp.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(bp); bp.connect(g); g.connect(sfxBus); s.start(t); s.stop(t + dur + .05);
+  }
+  function scheduleBgm() {
+    if (!ac || !on) { if (ac) nextT = ac.currentTime + .1; return; }
+    while (nextT < ac.currentTime + .4) {
+      const at = nextT - ac.currentTime, bar = Math.floor(step / 8) % 4, ch = CHORDS[bar], s8 = step % 8;
+      if (s8 === 0) { // soft pad + bass at the start of each bar
+        for (const m of ch.slice(0, 3)) tone('sine', hz(m), at, STEP * 8, .05, bgmBus, .8);
+        tone('triangle', hz(ch[0] - 24), at, STEP * 3, .16, bgmBus, .02);
+      }
+      if (s8 === 4) tone('triangle', hz(ch[0] - 24 + 7), at, STEP * 3, .1, bgmBus, .02);
+      if (Math.random() < (s8 % 2 ? .45 : .8)) { // music-box melody from the chord + pentatonic passing notes
+        const pool = ch.concat([ch[0] + 2, ch[0] + 9]).map(m => m + 12);
+        const m = pool[Math.floor(Math.random() * pool.length)];
+        tone('sine', hz(m), at, .9, .12, bgmBus); tone('triangle', hz(m * 1 + 12), at, .25, .03, bgmBus);
+      }
+      if (Math.random() < .05) tone('sine', [hz(84), hz(96)], at, .12, .04, bgmBus); // a little bubble
+      nextT += STEP; step++;
+    }
+  }
+  const play = {
+    jump()   { tone('sine', [420, 980], 0, .18, .35); },
+    water()  { for (let i = 0; i < 3; i++) tone('sine', [300 + Math.random() * 200, 700 + Math.random() * 300], i * .06, .09, .2); },
+    add()    { [0, 4, 7, 12, 16].forEach((d, i) => tone('triangle', hz(72 + d), i * .06, .5, .18)); },
+    arrive() { tone('sine', hz(84), 0, .8, .14); tone('sine', hz(91), .18, 1, .12); },
+    eel()    { tone('sine', [700, 220], 0, .15, .3); },
+    crab()   { for (let i = 0; i < 4; i++) noise(i * .13, .05, .5, 3500, 2500, 6); },
+    sharkComes() { for (let i = 0; i < 4; i++) tone('triangle', hz(40 + (i % 2) * 3), i * .32, .28, .35); },
+    chomp()  { noise(0, .12, .7, 900, 200, 1); tone('square', [260, 90], 0, .14, .25); tone('sine', hz(79), .16, .25, .2); },
+    visitor(kind) {
+      switch (kind) {
+        case 'kappa':    tone('square', [500, 1100], 0, .12, .15); tone('square', [700, 1300], .14, .12, .15); [0, 1, 2].forEach(i => tone('sine', [900, 1600], .3 + i * .05, .08, .1)); break;
+        case 'seahorse': [72, 76, 79, 84, 79, 84].forEach((m, i) => { tone('sawtooth', hz(m), i * .28, .25, .09, sfxBus, .03); tone('square', hz(m), i * .28, .22, .05, sfxBus, .03); }); break; // trumpet tune
+        case 'manta':    noise(0, 1.2, .35, 300, 1800, .8); tone('sine', [300, 600], .2, .9, .08); break;
+        case 'mola':     [67, 72, 76].forEach((m, i) => tone('sine', hz(m), i * .12, .8, .15)); break;
+        case 'turtle':   [84, 88, 91, 96].forEach((m, i) => tone('triangle', hz(m), i * .07, .4, .12)); break;
+        case 'whale':    tone('sawtooth', [70, 55], 0, 1.4, .25, sfxBus, .2); tone('sine', [140, 110], 0, 1.4, .2, sfxBus, .2); break;
+        case 'squid':    noise(0, .35, .6, 2500, 300, .7); tone('sine', [300, 900], .05, .25, .12); break;
+        case 'oarfish':  [79, 83, 86, 91, 95, 98].forEach((m, i) => tone('sine', hz(m), i * .08, .5, .08)); break;
+        case 'school':   noise(0, .25, .4, 5000, 2000, 1.5); break;
+        case 'clione':   [91, 96, 100, 103].forEach((m, i) => tone('sine', hz(m), i * .06, .6, .08)); break;
+      }
+    },
+  };
+  function setOn(v) {
+    on = v; try { localStorage.setItem('suisui-sound', v ? 'on' : 'off'); } catch (_) {}
+    if (master) master.gain.setTargetAtTime(v ? .7 : 0, ac.currentTime, .05);
+  }
+  document.addEventListener('visibilitychange', () => { if (!ac) return; document.hidden ? ac.suspend() : ac.resume(); });
+  return {init, setOn, isOn: () => on, ...Object.fromEntries(Object.entries(play).map(([k, f]) => [k, (...a) => { if (ac && on) f(...a); }]))};
+})();
+// first touch / click / key anywhere starts the audio
+['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, () => SND.init(), {capture: true}));
+
 /* tap a creature -> it jumps, spins and darts away. tap empty water -> ripple, and nearby creatures come to look */
 let spawnAt = null;
 const ripples = [];
@@ -294,12 +386,12 @@ cv.addEventListener('pointerdown', e => {
   for (let k = 0; k < (c ? 16 : 8); k++) bubbles.push({x: px + (Math.random() - .5) * 30, y: py, r: 2 + Math.random() * 6, v: 50 + Math.random() * 80, ph: Math.random() * 6});
   if (!c && (tapEels(px, py) || tapCrab(px, py) || tapVisitors(px, py))) return;
   if (c) {
-    c.jump = 1; c.spin = 1; c.target = null;
+    c.jump = 1; c.spin = 1; c.target = null; SND.jump();
     const away = Math.sign(c.x - px) || (Math.random() < .5 ? -1 : 1);
     c.vx = away * Math.max(Math.abs(c.vx), 60); c.boost = 3.5;
     if (c.mode === 'hop') c.vy = -520;
   } else {
-    ripples.push({x: px, y: py, a: 1});
+    ripples.push({x: px, y: py, a: 1}); SND.water();
     const R = Math.max(W, H) * .45;
     for (const o of creatures) if (Math.hypot(o.x - px, o.y - py) < R) o.target = {x: px, y: py, t: 2.2};
   }
@@ -456,7 +548,7 @@ function scheduleVisitors() {
   nextVisit = clock + VISIT_EVERY;
   const kinds = ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa'].filter(k => k !== lastKind);
   lastKind = FORCE && clock < 5 ? FORCE : kinds[Math.floor(Math.random() * kinds.length)];
-  spawnVisitor(lastKind);
+  spawnVisitor(lastKind); SND.arrive();
 }
 function sandY(x) { return H * .9 + Math.sin(x * .012) * 8; }
 function eelPoints(e, face, t) {
@@ -764,7 +856,7 @@ function drawFx(dt) {
 // tap on a visitor -> its own little show. Returns true when something was tapped.
 function tapVisitors(px, py) {
   const inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
-  const start = (v, d) => { if (v.act > 0) return false; v.act = d; v.actDur = d; return true; };
+  const start = (v, d) => { if (v.act > 0) return false; v.act = d; v.actDur = d; SND.visitor(v.kind); return true; };
   for (let i = visitors.length - 1; i >= 0; i--) {
     const v = visitors[i];
     switch (v.kind) {
@@ -794,17 +886,17 @@ function tapVisitors(px, py) {
           const d = Math.hypot(fxp - px, fyp - py);
           if (d < v.w * 4) { hit = true; const k = 520 * (1 - d / (v.w * 4)) + 120; f.svx = (fxp - px) / (d || 1) * k; f.svy = (fyp - py) / (d || 1) * k; }
         }
-        if (hit) return true; break;
+        if (hit) { SND.visitor('school'); return true; } break;
       }
       case 'clione':
-        for (const c of v.list) if (Math.hypot(c.x + Math.sin(c.ph * 1.2) * c.s * .8 - px, c.y - py) < c.s * 2 + 22 && !(c.act > 0)) { c.act = 1.2; burst('spark', c.x, c.y, 8, c.s * .35, 90); return true; }
+        for (const c of v.list) if (Math.hypot(c.x + Math.sin(c.ph * 1.2) * c.s * .8 - px, c.y - py) < c.s * 2 + 22 && !(c.act > 0)) { c.act = 1.2; burst('spark', c.x, c.y, 8, c.s * .35, 90); SND.visitor('clione'); return true; }
         break;
     }
   }
   return false;
 }
 function tapCrab(px, py) {
-  for (const v of visitors) if (v.kind === 'crab' && Math.hypot(v.x - px, sandY(v.x) - v.size * .4 - py) < v.size * .9) { v.wave = 1.6; v.pause = 1.6; return true; }
+  for (const v of visitors) if (v.kind === 'crab' && Math.hypot(v.x - px, sandY(v.x) - v.size * .4 - py) < v.size * .9) { v.wave = 1.6; v.pause = 1.6; SND.crab(); return true; }
   return false;
 }
 function tapEels(px, py) { // garden eels duck into the sand when touched
@@ -812,7 +904,7 @@ function tapEels(px, py) { // garden eels duck into the sand when touched
   for (const v of visitors) if (v.kind === 'eels') for (const e of v.eels) {
     if (e.up < .2) continue;
     const pts = eelPoints(e, v.face, v.t);
-    if (pts.some(([x, y]) => Math.hypot(x - px, y - py) < e.th + 26)) { e.hide = 2.5 + Math.random(); any = true; }
+    if (pts.some(([x, y]) => Math.hypot(x - px, y - py) < e.th + 26)) { if (!any) SND.eel(); e.hide = 2.5 + Math.random(); any = true; }
   }
   return any;
 }
@@ -945,6 +1037,7 @@ function checkShark() {
   if (shark || !due.length) return;
   const h = Math.min(W, H) * .3, w = h * 2, v = due[0];
   const fromLeft = v.x > W / 2; // come in from the far side, so everyone can see it coming
+  SND.sharkComes();
   shark = {w, h, x: fromLeft ? -w / 2 : W + w / 2, y: v.y, vx: fromLeft ? 1 : -1, vy: 0, face: fromLeft ? 1 : -1, tilt: 0, target: null, chomp: 0, t: 0};
 }
 function updateShark(dt) {
@@ -979,7 +1072,7 @@ function updateShark(dt) {
       if (!hit(mx, my, .3) && !hit(s.x, s.y, .15)) continue; // mouth on its middle, or swam right over it
       creatures.splice(creatures.indexOf(e), 1); originals.delete(e.id);
       for (let k = 0; k < 24; k++) bubbles.push({x: e.x + (Math.random() - .5) * e.w * .6, y: e.y + (Math.random() - .5) * e.h * .6, r: 2 + Math.random() * 7, v: 60 + Math.random() * 120, ph: Math.random() * 6});
-      pops.push({x: e.x, y: e.y - e.h * .4, a: 1, text: 'パクッ！'});
+      pops.push({x: e.x, y: e.y - e.h * .4, a: 1, text: 'パクッ！'}); SND.chomp();
       if (e === s.target) s.target = null;
       s.chomp = .35;
     }
@@ -1165,7 +1258,7 @@ function loadFiles(files) {
     const url = URL.createObjectURL(f), im = new Image();
     im.onload = () => {
       const cut = cutOut(im, +tol.value);
-      addCreature(cut, f.name.replace(/\.[^.]+$/, ''), {scale: .24, at, user: true});
+      addCreature(cut, f.name.replace(/\.[^.]+$/, ''), {scale: .24, at, user: true}); SND.add();
       originals.set(uid, im);
     };
     im.src = url;
@@ -1258,6 +1351,9 @@ file.addEventListener('change', () => { loadFiles(file.files); file.value = ''; 
 addEventListener('drop', e => { if (e.dataTransfer?.files?.length) loadFiles(e.dataTransfer.files); });
 addEventListener('paste', e => { const fs = [...(e.clipboardData?.files || [])]; if (fs.length) loadFiles(fs); });
 
+const sndBtn = document.getElementById('snd');
+const showSnd = () => { sndBtn.textContent = SND.isOn() ? '🔊 音あり' : '🔇 音なし'; sndBtn.setAttribute('aria-pressed', SND.isOn()); };
+sndBtn.onclick = () => { SND.init(); SND.setOn(!SND.isOn()); showSnd(); }; showSnd();
 const tray = document.getElementById('tray'), showBtn = document.getElementById('showTray');
 function setTray(open) { tray.classList.toggle('hide', !open); showBtn.hidden = open; }
 document.getElementById('hideTray').onclick = () => setTray(false);

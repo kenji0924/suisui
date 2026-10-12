@@ -41,7 +41,7 @@ body { background: var(--water-deep); color: var(--ink); font-family: var(--font
   width: min(360px, calc(100vw - 32px));
   background: var(--panel); border: 1px solid var(--panel-line); border-radius: 18px;
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  padding: 16px; display: grid; gap: 12px;
+  padding: 16px; display: grid; gap: 12px; max-height: calc(100vh - 32px - env(safe-area-inset-bottom, 0px)); overflow-y: auto;
   transition: opacity .3s, transform .3s;
 }
 .tray.hide { opacity: 0; transform: translateY(12px); pointer-events: none; }
@@ -74,6 +74,10 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 .item button { padding: 4px 7px; font-size: 12px; flex: none; }
 .item .name.life { font-size: 12px; line-height: 1.4; color: var(--accent); white-space: normal; font-variant-numeric: tabular-nums; }
 .item button.del { color: var(--danger); }
+.worlds { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.worlds span { font-size: 12px; color: var(--ink-soft); margin-right: 2px; }
+.worlds button { padding: 5px 8px; font-size: 12px; }
+.worlds button.on { background: var(--accent); color: #2b2000; border-color: transparent; font-weight: 700; }
 .count { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .show-btn {
   position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
@@ -146,9 +150,9 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
     <input type="range" id="tol" min="10" max="120" value="55">
   </div>
   <div class="list" id="list"></div>
+  <div class="worlds" id="worlds"><span>せかい</span><button data-w="sea">🌊 うみ</button><button data-w="dino">🦖 きょうりゅう</button><button data-w="yokai">👻 ようかい</button></div>
   <div class="row">
     <button class="primary" id="fs">全画面で表示</button>
-    <button id="worldBtn">🦖 きょうりゅうへ</button>
     <button id="hideTray">パネルを隠す</button>
     <button id="snd" aria-pressed="true">🔊 音あり</button>
     <span class="count" id="count"></span>
@@ -187,7 +191,7 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 const cv = document.getElementById('tank'), ctx = cv.getContext('2d');
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let W = 0, H = 0, DPR = 1;
-let WORLD = 'sea'; try { if (localStorage.getItem('suisui-world') === 'dino') WORLD = 'dino'; } catch (_) {}
+let WORLD = 'sea'; try { const sw = localStorage.getItem('suisui-world'); if (sw === 'dino' || sw === 'yokai') WORLD = sw; } catch (_) {}
 const GROUND = () => H * .86; // ground line in the dinosaur world
 function resize() {
   DPR = Math.min(devicePixelRatio || 1, 2);
@@ -210,11 +214,12 @@ function buildScenery() {
   rocks = Array.from({length: Math.round(n * .8)}, () => ({
     x: Math.random() * W, r: 14 + Math.random() * 30, s: 30 + Math.random() * 20
   }));
-  dinoScene = null; // rebuilt for the new size on the next frame
+  dinoScene = null; ykScene = null; // rebuilt for the new size on the next frame
 }
 const bubbles = [];
 function drawBackground(t) {
   if (WORLD === 'dino') return drawDinoBackground(t);
+  if (WORLD === 'yokai') return drawYokaiBackground(t);
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#1580a0'); g.addColorStop(.45, '#0b4d6c'); g.addColorStop(1, '#06243b');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -251,7 +256,7 @@ function drawBackground(t) {
   }
 }
 function drawBubbles(dt) {
-  const dino = WORLD === 'dino'; // on land the "bubbles" are little puffs of dust that fade
+  const dino = WORLD !== 'sea'; // on land the "bubbles" are little puffs of dust that fade
   if (!dino && !reduce && Math.random() < .08) bubbles.push({x: Math.random() * W, y: H, r: 2 + Math.random() * 6, v: 25 + Math.random() * 40, ph: Math.random() * 6});
   ctx.strokeStyle = 'rgba(220,250,255,.55)'; ctx.lineWidth = 1.5;
   for (let i = bubbles.length - 1; i >= 0; i--) {
@@ -270,7 +275,7 @@ const VISIT_EVERY = 30;    // a visitor passes through every 30 seconds
 const FIRST_VISIT = 10;
 const FAST = Math.max(1, +new URLSearchParams(location.search).get('fast') || 1); // ?fast=30 to try the timers quickly
 const MODES = [['swim', '泳ぐ'], ['float', 'ふわふわ'], ['hop', 'はねる']];
-const MODE_NAMES = {sea: {swim: '泳ぐ', float: 'ふわふわ', hop: 'はねる'}, dino: {swim: 'あるく', float: 'とぶ', hop: 'はねる'}};
+const MODE_NAMES = {sea: {swim: '泳ぐ', float: 'ふわふわ', hop: 'はねる'}, dino: {swim: 'あるく', float: 'とぶ', hop: 'はねる'}, yokai: {swim: 'あるく', float: 'ふわふわ', hop: 'はねる'}};
 const modeName = m => MODE_NAMES[WORLD][m];
 function addCreature(img, name, opts = {}) {
   const base = Math.min(W, H) * (opts.scale || .2);
@@ -292,7 +297,7 @@ function addCreature(img, name, opts = {}) {
   creatures.push(c); renderList();
 }
 function update(c, dt, t) {
-  const floor = WORLD === 'dino' ? GROUND() : H * .9, top = H * .08;
+  const floor = WORLD !== 'sea' ? GROUND() : H * .9, top = H * .08;
   c.ph += dt;
   if (c.jump > 0) c.jump = Math.max(0, c.jump - dt * 1.6);
   if (c.launch) return; // flying off after the eruption (moved in the loop)
@@ -314,7 +319,7 @@ function update(c, dt, t) {
       if (c.mode !== 'hop') c.vy += (dy / d * 140 - c.vy) * Math.min(1, dt * 3);
     }
   }
-  if (WORLD === 'dino' && c.mode !== 'hop') { updateDinoMove(c, dt, sp, tg); return; }
+  if (WORLD !== 'sea' && c.mode !== 'hop') { updateDinoMove(c, dt, sp, tg); return; }
   if (c.mode === 'swim') {
     if (!tg && Math.random() < dt * .25) c.vy = (Math.random() - .5) * 60;
     if (!tg && !c.boost && Math.random() < dt * .08) c.vx *= -1;
@@ -340,7 +345,8 @@ function draw(c, t) {
   const wob = reduce ? 0 : Math.sin(c.ph * (c.mode === 'swim' ? 7 : 3));
   const jumpY = -Math.sin(c.jump * Math.PI) * c.h * .8;
   let sx = c.dir * (c.flip ? -1 : 1), sy = 1, rot = 0;
-  if (WORLD === 'dino' && c.mode === 'swim') { rot = Math.sin(c.walk || 0) * .06; }
+  if (WORLD !== 'sea' && c.mode === 'swim') { rot = Math.sin(c.walk || 0) * .06; }
+  else if (WORLD === 'yokai' && c.mode === 'float') { sy = 1 + wob * .06; sx *= 1 - wob * .04; rot = Math.sin(c.ph * 1.3) * .08; }
   else if (WORLD === 'dino' && c.mode === 'float') { rot = Math.atan2(c.vy, Math.abs(c.vx) * 3) * .5 * Math.sign(c.vx); sy = 1 + Math.sin(c.ph * 8) * .06; }
   else if (c.mode === 'swim') { rot = Math.atan2(c.vy, Math.abs(c.vx)) * .4 * Math.sign(c.vx) + wob * .04; sx *= 1 + wob * .04; }
   else if (c.mode === 'float') { sy = 1 + wob * .06; sx *= 1 - wob * .04; }
@@ -362,18 +368,19 @@ function loop(t) {
   if (shake > .3) { ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake); shake *= Math.pow(.02, dt); } // stomps / eruptions
   drawBackground(t);
   scheduleVisitors();
-  if (WORLD === 'dino') checkVolcano(); else checkShark();
+  if (WORLD === 'dino') checkVolcano(); else if (WORLD === 'yokai') checkDawn(); else checkShark();
   drawVisitors(dt, 'back');
   for (const c of [...creatures]) {
     if (c.hidden) { c.hideT -= dt; if (c.hideT <= 0) { c.hidden = false; c.x = W * (.15 + Math.random() * .7); c.y = -c.h; c.drop = {vy: 0, rot: 0}; } continue; } // away on the UFO
     if (c.abduct) { draw(c, t); continue; }
     if (c.drop) { updateReturn(c, dt); draw(c, t); continue; }
+    if (c.ascend) { if (!updateAscend(c, dt)) { creatures.splice(creatures.indexOf(c), 1); originals.delete(c.id); renderList(); continue; } ctx.save(); ctx.globalAlpha = Math.max(0, c.ascend.a); draw(c, t); ctx.restore(); continue; }
     if (c.launch && !updateLaunched(c, dt)) { creatures.splice(creatures.indexOf(c), 1); originals.delete(c.id); renderList(); continue; }
     if (!c.launch) update(c, dt, t);
     draw(c, t);
   }
   drawVisitors(dt, 'front'); drawFx(dt);
-  if (WORLD === 'dino') updateVolcano(dt); else updateShark(dt);
+  if (WORLD === 'dino') updateVolcano(dt); else if (WORLD === 'yokai') updateDawn(dt); else updateShark(dt);
   drawRipples(dt); drawBubbles(dt); drawPops(dt);
   ctx.restore();
   requestAnimationFrame(loop);
@@ -383,7 +390,7 @@ function loop(t) {
    Browsers only allow sound after the first tap, so audio starts on the first touch/click.
    BGM = a soft music-box tune over a slow chord loop, with an underwater filter. */
 const SND = (() => {
-  let ac = null, master, bgmBus, sfxBus, lp, on = true, bgmTimer = null, nextT = 0, step = 0;
+  let ykPrev = 3, ac = null, master, bgmBus, sfxBus, lp, on = true, bgmTimer = null, nextT = 0, step = 0;
   try { on = localStorage.getItem('suisui-sound') !== 'off'; } catch (_) {}
   const STEP = .34, CHORDS = [[60, 64, 67, 72], [57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67]]; // C Am F G
   const DCHORDS = [[62, 66, 69, 74], [67, 71, 74, 79], [64, 67, 71, 76], [69, 73, 76, 81]]; // D G Em A (dinosaur world)
@@ -421,10 +428,17 @@ const SND = (() => {
   }
   function scheduleBgm() {
     if (!ac || !on) { if (ac) nextT = ac.currentTime + .1; return; }
-    const dino = WORLD === 'dino';
-    lp.frequency.value = dino ? 7000 : 2600; // under water the music is muffled
+    const dino = WORLD === 'dino', yk = WORLD === 'yokai';
+    lp.frequency.value = WORLD === 'sea' ? 2600 : 7000; // under water the music is muffled
     while (nextT < ac.currentTime + .4) {
       const at = nextT - ac.currentTime, bar = Math.floor(step / 8) % 4, s8 = step % 8;
+      if (yk) { // night festival: flute melody on a Japanese (yo) scale, taiko and a little bell
+        const YO = [62, 64, 67, 69, 71, 74, 76, 79];
+        if (s8 === 0 || s8 === 3 || s8 === 6) tone('sine', [95, 50], at, .3, s8 === 0 ? .4 : .25, bgmBus);
+        if (s8 === 4) tone('triangle', hz(96), at, .25, .05, bgmBus);
+        if (Math.random() < (s8 % 2 ? .35 : .75)) { ykPrev = Math.max(0, Math.min(YO.length - 1, ykPrev + Math.floor(Math.random() * 5) - 2)); const m = YO[ykPrev] + 12; tone('sine', hz(m), at, .5, .11, bgmBus, .04); tone('sine', hz(m) * 1.005, at, .5, .05, bgmBus, .04); }
+        nextT += STEP * 1.05; step++; continue;
+      }
       if (dino) { // jungle: bouncy marimba over a walking bass, birds now and then
         const ch = DCHORDS[bar];
         if (s8 % 2 === 0) tone('triangle', hz(ch[0] - 24 + (s8 % 4 ? 7 : 0)), at, STEP * 1.5, .17, bgmBus, .01);
@@ -453,8 +467,9 @@ const SND = (() => {
   }
   const play = {
     jump()   { tone('sine', [420, 980], 0, .18, .35); },
-    water()  { if (WORLD === 'dino') { noise(0, .18, .35, 4000, 1500, 1.2); return; } for (let i = 0; i < 3; i++) tone('sine', [300 + Math.random() * 200, 700 + Math.random() * 300], i * .06, .09, .2); },
+    water()  { if (WORLD === 'yokai') { [88, 93].forEach((m, i) => tone('sine', hz(m), i * .07, .35, .1)); return; } if (WORLD === 'dino') { noise(0, .18, .35, 4000, 1500, 1.2); return; } for (let i = 0; i < 3; i++) tone('sine', [300 + Math.random() * 200, 700 + Math.random() * 300], i * .06, .09, .2); },
     bonk()   { tone('sine', [260, 120], 0, .18, .45); noise(0, .12, .5, 1500, 500, 2); [96, 100].forEach((m, i) => tone('sine', hz(m), .1 + i * .07, .3, .07)); },
+    rooster(){ tone('square', [500, 700], 0, .18, .08); tone('square', [700, 900], .2, .18, .08); tone('square', [900, 1200], .42, .35, .08); tone('square', [1200, 700], .78, .4, .08); [72, 76, 79, 84].forEach((m, i) => tone('sine', hz(m), 1.3 + i * .15, .6, .1)); },
     stomp()  { tone('sine', [90, 40], 0, .25, .5); noise(0, .15, .25, 300, 100, 1); },
     crack()  { for (let i = 0; i < 3; i++) noise(i * .08, .05, .5, 3000, 1800, 4); [79, 84, 88].forEach((m, i) => tone('triangle', hz(m), .3 + i * .1, .4, .14)); },
     rumble() { tone('sawtooth', [45, 38], 0, 1.8, .22, sfxBus, .4); noise(0, 1.8, .35, 200, 80, .7); },
@@ -485,6 +500,15 @@ const SND = (() => {
         case 'brachio':  tone('sine', [110, 140], 0, .9, .3, sfxBus, .1); tone('sine', [140, 100], .8, .9, .25, sfxBus, .1); break;
         case 'stego':    [84, 88, 91, 96, 100].forEach((m, i) => tone('triangle', hz(m), i * .07, .5, .1)); break;
         case 'parasaur': [67, 72, 76, 79, 76, 72, 74, 79].forEach((m, i) => { tone('sawtooth', hz(m - 12), i * .34, .32, .07, sfxBus, .05); tone('sine', hz(m), i * .34, .32, .14, sfxBus, .05); }); break; // a horn-like song
+        case 'karakasa': tone('sine', [300, 700], 0, .2, .2); tone('sine', [700, 250], .2, .4, .2); break;
+        case 'chochin':  noise(0, .4, .5, 600, 2500, .8); tone('sine', [200, 500], 0, .3, .15); break;
+        case 'momen':    tone('sine', [600, 1200], 0, .8, .1); tone('sine', [1200, 700], .8, .7, .08); break;
+        case 'rokuro':   tone('triangle', [300, 900], 0, 1.8, .12, sfxBus, .1); tone('sine', [900, 300], 2, .8, .08); break;
+        case 'kitsune':  tone('square', [800, 500], 0, .12, .1); tone('square', [800, 500], .2, .12, .1); [91, 96].forEach((m, i) => tone('sine', hz(m), .4 + i * .1, .4, .08)); break;
+        case 'neko':     tone('sine', [700, 500], 0, .2, .2); tone('sine', [500, 900], .2, .4, .2); break;
+        case 'hitotsume':noise(0, .12, .4, 2000, 800, 1); tone('square', [300, 600], 0, .15, .12); break;
+        case 'tengu':    noise(0, 1.2, .5, 300, 3000, .5); break;
+        case 'oni':      for (let i = 0; i < 6; i++) tone('sine', [110, 50], i * .3, .25, .45); break;
         case 'ufo':      for (let i = 0; i < 4; i++) tone('sine', [500 + i * 120, 900 + i * 160], i * .35, .35, .1); tone('triangle', [300, 1400], 0, 1.8, .06, sfxBus, .3); break;
         case 'pachy':    tone('square', [500, 900], 0, .15, .08); break;
         case 'tricera':  for (let i = 0; i < 6; i++) { tone('sine', [110, 50], i * .12, .12, .35); } break;
@@ -521,6 +545,7 @@ cv.addEventListener('pointerdown', e => {
   if (!tr.classList.contains('hide')) { NAV.close('tray'); return; }
   // small visitors (egg, shooting star, pteranodons) get the tap before the drawings in front of them
   if (WORLD === 'dino' && tapDino(e.clientX, e.clientY, true)) return;
+  if (WORLD === 'yokai' && tapYokai(e.clientX, e.clientY)) return; // yokai visitors first, they mingle with the drawings
   const px = e.clientX, py = e.clientY, c = hit(px, py);
   for (let k = 0; k < (c ? 16 : 8); k++) bubbles.push({x: px + (Math.random() - .5) * 30, y: py, r: 2 + Math.random() * 6, v: 50 + Math.random() * 80, ph: Math.random() * 6});
   if (!c && (tapEels(px, py) || tapCrab(px, py) || tapVisitors(px, py))) return;
@@ -624,6 +649,7 @@ const FORCE = new URLSearchParams(location.search).get('visit'); // ?visit=squid
 let nextVisit = FORCE ? 1 : FIRST_VISIT, lastKind = '';
 function spawnVisitor(kind) {
   if (WORLD === 'dino') return spawnDino(kind);
+  if (WORLD === 'yokai') return spawnYokai(kind);
   const m = Math.min(W, H), side = Math.random() < .5 ? 1 : -1; // 1 = enters from the left
   if (kind === 'eels') { // garden eels pop out of the sand, sway, then hide again
     const n = 6 + Math.floor(Math.random() * 3), cx = W * (.25 + Math.random() * .5), span = Math.min(W * .6, m * 1.1);
@@ -691,7 +717,7 @@ function spawnVisitor(kind) {
 function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
-  const kinds = (WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio']).filter(k => k !== lastKind);
+  const kinds = (WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio']).filter(k => k !== lastKind);
   lastKind = FORCE && clock < 5 ? FORCE : kinds[Math.floor(Math.random() * kinds.length)];
   spawnVisitor(lastKind); SND.arrive();
 }
@@ -1017,6 +1043,11 @@ function drawFx(dt) {
       const head = (x) => { ctx.beginPath(); ctx.ellipse(x, 0, r * .55, r * .4, -.4, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(x + r * .48, -r * .1); ctx.lineTo(x + r * .48, -r * 1.9); ctx.stroke(); };
       if (f.two) { head(0); head(r * 1.3); ctx.lineWidth = r * .35; ctx.beginPath(); ctx.moveTo(r * .48, -r * 1.85); ctx.lineTo(r * 1.78, -r * 1.85); ctx.stroke(); }
       else { head(0); ctx.beginPath(); ctx.moveTo(r * .48, -r * 1.9); ctx.quadraticCurveTo(r * 1.3, -r * 1.4, r * 1.05, -r * .8); ctx.stroke(); }
+    } else if (f.k === 'leaf') {
+      f.ph += dt * 8; ctx.rotate(f.ph); ctx.fillStyle = '#7fbf4a'; ctx.beginPath(); ctx.ellipse(0, 0, f.s, f.s * .45, 0, 0, 7); ctx.fill();
+    } else if (f.k === 'fire' || f.k === 'foxfire') {
+      const r = f.s * (1.4 - f.a * .4); ctx.fillStyle = f.k === 'fire' ? `rgba(255,150,60,${f.a})` : `rgba(120,200,255,${f.a})`; ctx.shadowColor = f.k === 'fire' ? '#ffb347' : '#8fe0ff'; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.moveTo(-r, 0); ctx.quadraticCurveTo(0, -r * 3, r * .3, -r * 2.4); ctx.quadraticCurveTo(r * .4, -r, r, 0); ctx.fill();
     } else if (f.k === 'ink') {
       ctx.globalAlpha = f.a * .7; ctx.fillStyle = '#1d1630'; ctx.beginPath(); ctx.arc(0, 0, f.s * (1.8 - f.a), 0, 7); ctx.fill();
     } else { // drop
@@ -1028,6 +1059,7 @@ function drawFx(dt) {
 // tap on a visitor -> its own little show. Returns true when something was tapped.
 function tapVisitors(px, py) {
   if (WORLD === 'dino') return tapDino(px, py);
+  if (WORLD === 'yokai') return tapYokai(px, py);
   const inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
   const start = (v, d) => { if (v.act > 0) return false; v.act = d; v.actDur = d; SND.visitor(v.kind); return true; };
   for (let i = visitors.length - 1; i >= 0; i--) {
@@ -1091,6 +1123,7 @@ function drawVisitors(dt, layer) {
     const P = v.act > 0 ? 1 - v.act / v.actDur : -1; // progress of a tap reaction (0..1), or -1
     ctx.save();
     if (WORLD === 'dino') { if (!drawDinoVisitor(v, dt, P)) visitors.splice(i, 1); ctx.restore(); continue; }
+    if (WORLD === 'yokai') { if (!drawYokaiVisitor(v, dt, P)) visitors.splice(i, 1); ctx.restore(); continue; }
     if (v.kind === 'plesio') {
       v.x += v.dir * (P >= 0 ? 25 : 55) * dt; v.y += Math.sin(v.t * .8) * 12 * dt;
       ctx.translate(v.x, v.y);
@@ -1212,7 +1245,7 @@ function sharkSprite(open) {
 const SHARK = [sharkSprite(false), sharkSprite(true)];
 let shark = null;
 const pops = [];
-function expired() { return creatures.filter(c => c.user && clock - c.born >= LIFE && !c.hidden && !c.abduct && !c.drop); }
+function expired() { return creatures.filter(c => c.user && clock - c.born >= LIFE && !c.hidden && !c.abduct && !c.drop && !c.ascend); }
 function checkShark() {
   const due = expired();
   for (const c of due) c.fear = true;
@@ -1514,7 +1547,8 @@ function updateLife() {
     if (!c.lifeEl) continue;
     const left = Math.ceil(LIFE - (clock - c.born));
     const dino = WORLD === 'dino', mmss = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
-    c.lifeEl.textContent = left > 0 ? (dino ? `噴火まで ${mmss}` : `サメが来るまで ${mmss}`) : (dino ? '噴火！' : 'サメが来た！');
+    const yk = WORLD === 'yokai';
+    c.lifeEl.textContent = left > 0 ? (yk ? `朝まで ${mmss}` : dino ? `噴火まで ${mmss}` : `サメが来るまで ${mmss}`) : (yk ? '朝だ！' : dino ? '噴火！' : 'サメが来た！');
   }
 }
 setInterval(updateLife, 1000);
@@ -1683,6 +1717,52 @@ const PAINT = (() => {
       t.part(p => p.arc(355, 310, 35, 0, Math.PI * 2));
       t.line(p => { p.moveTo(200, 230); p.lineTo(215, 320); p.moveTo(130, 200); p.lineTo(170, 310); p.moveTo(400, 225); p.lineTo(385, 315); p.moveTo(470, 195); p.lineTo(430, 310); });
       t.dot(365, 300, 9);
+    }},
+    {name: 'おばけ', world: 'yokai', mode: 'float', draw(t) {
+      t.part(p => { p.moveTo(160, 420); p.lineTo(160, 260); p.arc(300, 260, 140, Math.PI, 0); p.lineTo(440, 420); for (let k = 3; k >= 0; k--) p.quadraticCurveTo(160 + (k + .5) * 70, 470, 160 + k * 70, 420); p.closePath(); });
+      t.part(p => p.ellipse(450, 320, 40, 26, -.5, 0, Math.PI * 2));
+      t.line(p => p.arc(300, 330, 26, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(200, 200); p.quadraticCurveTo(300, 150, 400, 200); });
+      t.dot(260, 270, 13); t.dot(345, 270, 13);
+    }},
+    {name: 'からかさ', world: 'yokai', mode: 'hop', draw(t) {
+      t.part(p => { p.moveTo(170, 500); p.lineTo(170, 520); p.lineTo(320, 520); p.lineTo(320, 500); p.closePath(); });
+      t.part(p => { p.moveTo(232, 370); p.lineTo(232, 500); p.lineTo(258, 500); p.lineTo(258, 370); p.closePath(); });
+      t.part(p => { p.moveTo(245, 40); p.lineTo(420, 380); for (let k = 4; k >= -4; k--) p.quadraticCurveTo(245 + k * 44 + 22, 400, 245 + k * 44, 380); p.closePath(); });
+      t.line(p => { p.moveTo(245, 45); p.lineTo(155, 380); p.moveTo(245, 45); p.lineTo(335, 380); });
+      t.line(p => p.arc(245, 230, 42, 0, Math.PI * 2)); t.dot(250, 232, 18);
+      t.line(p => { p.moveTo(225, 315); p.quadraticCurveTo(240, 420, 280, 410); p.quadraticCurveTo(275, 360, 268, 315); });
+    }},
+    {name: 'ちょうちん', world: 'yokai', mode: 'float', draw(t) {
+      t.part(p => { p.moveTo(210, 100); p.lineTo(390, 100); p.lineTo(390, 140); p.lineTo(210, 140); p.closePath(); });
+      t.part(p => { p.moveTo(210, 460); p.lineTo(390, 460); p.lineTo(390, 500); p.lineTo(210, 500); p.closePath(); });
+      t.part(p => p.ellipse(300, 300, 170, 185, 0, 0, Math.PI * 2));
+      for (const y of [190, 410]) t.line(p => { p.moveTo(160, y); p.quadraticCurveTo(300, y + 20, 440, y); });
+      t.line(p => p.arc(300, 250, 45, 0, Math.PI * 2)); t.dot(305, 255, 20);
+      t.line(p => { p.moveTo(230, 340); p.quadraticCurveTo(300, 400, 370, 340); p.quadraticCurveTo(300, 360, 230, 340); });
+    }},
+    {name: 'ねこまた', world: 'yokai', mode: 'swim', draw(t) {
+      for (const k of [0, 1]) t.part(p => { p.moveTo(160, 330); p.quadraticCurveTo(80 - k * 30, 240 - k * 40, 120 - k * 70, 120 + k * 30); p.lineTo(150 - k * 70, 125 + k * 30); p.quadraticCurveTo(115 - k * 25, 240 - k * 40, 185, 320); p.closePath(); });
+      for (const x of [180, 230, 370, 420]) t.part(p => { p.moveTo(x - 20, 380); p.lineTo(x - 20, 470); p.lineTo(x + 20, 470); p.lineTo(x + 20, 380); p.closePath(); });
+      t.part(p => p.ellipse(300, 360, 160, 75, 0, 0, Math.PI * 2));
+      for (const ex of [-1, 1]) t.part(p => { p.moveTo(450 + ex * 30, 225); p.lineTo(450 + ex * 60, 150); p.lineTo(450 + ex * 70, 245); p.closePath(); });
+      t.part(p => p.ellipse(450, 270, 85, 70, 0, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(250, 300); p.quadraticCurveTo(260, 360, 245, 420); }); t.line(p => { p.moveTo(320, 295); p.quadraticCurveTo(330, 360, 315, 425); });
+      t.dot(420, 265, 12); t.dot(485, 265, 12);
+      t.line(p => { p.moveTo(440, 300); p.quadraticCurveTo(452, 312, 462, 300); });
+      t.line(p => { p.moveTo(500, 295); p.lineTo(560, 285); p.moveTo(500, 305); p.lineTo(560, 310); });
+    }},
+    {name: 'おに', world: 'yokai', mode: 'swim', draw(t) {
+      for (const x of [255, 345]) t.part(p => { p.moveTo(x - 28, 430); p.lineTo(x - 28, 530); p.lineTo(x + 28, 530); p.lineTo(x + 28, 430); p.closePath(); });
+      t.part(p => p.ellipse(300, 390, 110, 95, 0, 0, Math.PI * 2));
+      for (const ex of [-1, 1]) t.part(p => { p.moveTo(300 + ex * 40, 150); p.lineTo(300 + ex * 70, 70); p.lineTo(300 + ex * 95, 165); p.closePath(); });
+      t.part(p => p.arc(300, 220, 115, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(195, 420); p.lineTo(405, 420); p.moveTo(200, 455); p.lineTo(400, 455); });
+      for (const x of [240, 300, 360]) t.line(p => p.arc(x, 437, 10, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(200, 170); p.quadraticCurveTo(300, 110, 400, 170); });
+      t.dot(260, 215, 15); t.dot(340, 215, 15);
+      t.line(p => { p.moveTo(255, 275); p.quadraticCurveTo(300, 305, 345, 275); });
+      t.line(p => { p.moveTo(270, 282); p.lineTo(276, 300); p.lineTo(284, 287); p.moveTo(330, 282); p.lineTo(324, 300); p.lineTo(316, 287); });
     }},
     {name: 'ブラキオ', world: 'dino', mode: 'swim', draw(t) {
       t.part(p => { p.moveTo(160, 345); p.quadraticCurveTo(70, 370, 10, 470); p.quadraticCurveTo(110, 430, 165, 425); p.closePath(); });
@@ -1926,12 +2006,12 @@ const ZUKAN = (() => {
   let urls = [];
   async function open() {
     NAV.open('zukan'); urls.forEach(URL.revokeObjectURL); urls = []; grid.innerHTML = '';
-    const dino = WORLD === 'dino';
-    document.getElementById('zTitle').textContent = dino ? '📖 ずかん（きょうりゅう）' : '📖 ずかん（うみ）';
+    const dino = WORLD === 'dino', yk = WORLD === 'yokai';
+    document.getElementById('zTitle').textContent = yk ? '📖 ずかん（ようかい）' : dino ? '📖 ずかん（きょうりゅう）' : '📖 ずかん（うみ）';
     const all_ = await all();
     if (!all_) { info.textContent = 'このブラウザでは ずかん を使えません（シークレットモードなど）。'; return; }
     const list = all_.filter(r => (r.world || 'sea') === WORLD); // each world has its own book
-    const where = dino ? '恐竜の世界で動きます' : '水槽で泳ぎます';
+    const where = yk ? '妖怪の世界で動きます' : dino ? '恐竜の世界で動きます' : '水槽で泳ぎます';
     info.textContent = list.length ? `${list.length}まい ・ タップすると${where}` : 'まだ絵がありません。絵を入れたり、ぬりえをすると、ここにたまっていきます。';
     for (const r of list) {
       const url = URL.createObjectURL(r.blob); urls.push(url);
@@ -2051,8 +2131,9 @@ function updateDinoMove(c, dt, sp, tg) {
   } else { // fly through the sky
     if (!c.alt || Math.random() < dt * .1) c.alt = H * (.1 + Math.random() * .38);
     const goal = tg ? tg.y : c.alt;
-    c.x += c.vx * 1.15 * sp * dt;
-    c.vy += ((goal + Math.sin(c.ph * 1.6) * 30 - c.y) * 1.2 - c.vy) * Math.min(1, dt * 2);
+    const ghost = WORLD === 'yokai';
+    c.x += c.vx * (ghost ? .5 : 1.15) * sp * dt;
+    c.vy += ((goal + Math.sin(c.ph * 1.6) * (ghost ? 45 : 30) - c.y) * 1.2 - c.vy) * Math.min(1, dt * 2);
     c.y += c.vy * dt;
     if (!tg && !c.boost && Math.random() < dt * .04) c.vx *= -1;
     c.y = Math.min(G - c.h / 2, Math.max(c.h / 2, c.y));
@@ -2460,34 +2541,363 @@ const dinoSamples = [
 ];
 
 /* ---------- switching worlds ---------- */
-const parked = {sea: [], dino: []}; // drawings of the world that is not on screen
+const parked = {sea: [], dino: [], yokai: []}; // drawings of the worlds that are not on screen
+const SAMPLES = () => ({sea: samples, dino: dinoSamples, yokai: yokaiSamples})[WORLD];
 function setWorld(w) {
+  const from = WORLD === w ? null : WORLD;
   WORLD = w; try { localStorage.setItem('suisui-world', w); } catch (_) {}
-  visitors.length = 0; shark = null; erupt = null; lava.length = 0; bubbles.length = 0; fx.length = 0;
+  visitors.length = 0; shark = null; erupt = null; dawn = null; lava.length = 0; bubbles.length = 0; fx.length = 0;
   nextVisit = clock + 6;
   // each world keeps its own drawings: put this world's away (their 3-minute timer pauses) and bring the other's back
   const leaving = creatures.filter(c => c.user);
-  for (const c of creatures) { if (c.hidden || c.abduct || c.drop) { c.hidden = false; c.abduct = false; c.drop = null; c.shrink = 1; c.spin2 = 0; c.y = GROUND() - c.h / 2; } }
+  for (const c of creatures) { c.ascend = null; if (c.hidden || c.abduct || c.drop) { c.hidden = false; c.abduct = false; c.drop = null; c.shrink = 1; c.spin2 = 0; c.y = GROUND() - c.h / 2; } }
   for (const c of leaving) { c.fear = false; c.launch = null; c.awayAt = clock; }
   const back = parked[w] || [];
   for (const c of back) { c.born += clock - c.awayAt; c.fear = false; c.launch = null; }
-  parked[w === 'dino' ? 'sea' : 'dino'] = leaving; parked[w] = [];
+  if (from) parked[from] = leaving; parked[w] = [];
   creatures.length = 0; creatures.push(...back);
-  (w === 'dino' ? dinoSamples : samples).forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));
+  SAMPLES().forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));
   buildScenery(); renderList(); showWorld();
 }
 function showWorld() {
   const dino = WORLD === 'dino';
-  document.getElementById('desc').textContent = dino
+  document.getElementById('desc').textContent = WORLD === 'yokai'
+    ? 'スキャンした絵や写真を入れると、白い紙の部分を消して妖怪のおまつりで動きだします。タッチするとジャンプします。30秒ごとにお客さん（からかさおばけ、ちょうちんおばけ、きつねなど）が通りかかります。入れた絵は3分たつと朝になって、空へ帰っていきます。'
+    : dino
     ? 'スキャンした絵や写真を入れると、白い紙の部分を消して恐竜の世界で動きだします。タッチするとジャンプします。30秒ごとにお客さん（ティラノサウルス、プテラノドン、トリケラトプスなど）が通りかかります。入れた絵は3分たつと火山が噴火して飛んでいきます。'
     : 'スキャンした絵や写真を入れると、白い紙の部分を消して水槽で泳ぎます。お魚をタッチするとジャンプして逃げます。水をタッチすると近くのお魚が見に来ます。30秒ごとにお客さん（マンボウ、カニ、マンタなど）が通りかかります。入れた絵は3分たつとサメが食べに来ます。';
-  document.getElementById('worldBtn').textContent = dino ? '🌊 うみへ' : '🦖 きょうりゅうへ';
+  document.querySelectorAll('#worlds button').forEach(b => b.classList.toggle('on', b.dataset.w === WORLD));
   document.documentElement.dataset.world = WORLD;
 }
-document.getElementById('worldBtn').onclick = () => { SND.init(); setWorld(WORLD === 'dino' ? 'sea' : 'dino'); SND.arrive(); };
+document.querySelectorAll('#worlds button').forEach(b => b.onclick = () => { if (b.dataset.w === WORLD) return; SND.init(); setWorld(b.dataset.w); SND.arrive(); });
+
+/* ====================== YOKAI WORLD (a cute night festival) ======================
+   Night shrine with lanterns; drawings walk / float / hop; a yokai visits every 30 s;
+   after 3 minutes the sun comes up and the drawing floats away into the morning sky. */
+let ykScene = null, dawn = null;
+function buildYokaiScene() {
+  const m = Math.min(W, H);
+  ykScene = {
+    stars: Array.from({length: Math.round(W * H / 9000)}, () => ({x: Math.random() * W, y: Math.random() * GROUND() * .75, r: .6 + Math.random() * 1.6, ph: Math.random() * 6})),
+    hills: Array.from({length: 6}, (_, i) => ({x: (i / 5) * W, r: W * (.14 + Math.random() * .1)})),
+    torii: {x: W * .2, h: Math.min(H * .34, m * .5)},
+    wisps: Array.from({length: 3}, () => ({x: Math.random() * W, y: H * (.35 + Math.random() * .3), ph: Math.random() * 6, s: m * .022})),
+    grass: Array.from({length: Math.max(8, Math.round(W / 70))}, () => ({x: Math.random() * W, s: m * (.025 + Math.random() * .025)})),
+  };
+}
+function lanternShape(x, s, lit) { // a round paper lantern (chochin), centred
+  x.fillStyle = '#222'; x.fillRect(-s * .32, -s * .62, s * .64, s * .14); x.fillRect(-s * .32, s * .48, s * .64, s * .14);
+  x.fillStyle = lit ? '#ff6b4a' : '#d9534f'; x.strokeStyle = '#7a1f1a'; x.lineWidth = Math.max(2, s * .05);
+  x.beginPath(); x.ellipse(0, 0, s * .45, s * .52, 0, 0, Math.PI * 2); x.fill(); x.stroke();
+  x.strokeStyle = 'rgba(120,30,20,.45)'; x.lineWidth = Math.max(1, s * .03);
+  for (let k = -2; k <= 2; k++) { x.beginPath(); x.ellipse(0, k * s * .17, s * .45 * Math.sqrt(1 - Math.pow(k * .17 / .52, 2)), s * .04, 0, 0, Math.PI * 2); x.stroke(); }
+}
+function drawYokaiBackground(t) {
+  if (!ykScene) buildYokaiScene();
+  const S = ykScene, G = GROUND(), dk = dawn ? dawn.k : 0;
+  const g = ctx.createLinearGradient(0, 0, 0, G);
+  g.addColorStop(0, '#171340'); g.addColorStop(.6, '#33276a'); g.addColorStop(1, '#6b3f7d');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // stars + moon (fade at dawn)
+  ctx.globalAlpha = 1 - dk;
+  for (const st of S.stars) { ctx.fillStyle = `rgba(255,250,220,${.4 + .6 * Math.abs(Math.sin(t * .002 + st.ph))})`; ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 7); ctx.fill(); }
+  const mr = Math.min(W, H) * .085, mx = W * .82, my = H * .16;
+  ctx.fillStyle = 'rgba(255,240,180,.18)'; ctx.beginPath(); ctx.arc(mx, my, mr * 1.8, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff4c2'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(220,200,140,.5)'; for (const [a, b, r] of [[-.3, -.2, .18], [.25, .1, .14], [-.05, .35, .1]]) { ctx.beginPath(); ctx.arc(mx + a * mr, my + b * mr, r * mr, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  // sunrise sky on top
+  if (dk > 0) {
+    const sg = ctx.createLinearGradient(0, 0, 0, G); sg.addColorStop(0, '#8fd0ff'); sg.addColorStop(.7, '#ffd6a8'); sg.addColorStop(1, '#ffb27a');
+    ctx.globalAlpha = dk; ctx.fillStyle = sg; ctx.fillRect(0, 0, W, G + 10);
+    const sr = Math.min(W, H) * .1, sy = G - sr * .2 - dk * H * .12;
+    ctx.fillStyle = 'rgba(255,230,150,.5)'; ctx.beginPath(); ctx.arc(W * .5, sy, sr * 1.8, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ffdf6b'; ctx.beginPath(); ctx.arc(W * .5, sy, sr, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  // hills
+  ctx.fillStyle = dk > .5 ? '#5f8a6a' : '#2b2152';
+  for (const h of S.hills) { ctx.beginPath(); ctx.ellipse(h.x, G, h.r, h.r * .42, 0, Math.PI, 0); ctx.fill(); }
+  // shrine behind the torii
+  const T = S.torii, tx = T.x, th = T.h;
+  ctx.fillStyle = '#3a2a3a'; ctx.beginPath(); ctx.moveTo(tx + th * .35, G - th * .55); ctx.lineTo(tx + th * 1.25, G - th * .55); ctx.lineTo(tx + th * 1.12, G - th * .78); ctx.lineTo(tx + th * .48, G - th * .78); ctx.closePath(); ctx.fill();
+  ctx.fillRect(tx + th * .45, G - th * .55, th * .7, th * .55);
+  ctx.fillStyle = '#ffcf6b'; ctx.globalAlpha = .7; ctx.fillRect(tx + th * .7, G - th * .4, th * .2, th * .3); ctx.globalAlpha = 1;
+  // torii gate
+  ctx.fillStyle = '#e0442f'; ctx.strokeStyle = '#7a1f1a'; ctx.lineWidth = 3;
+  const pw = th * .09;
+  for (const sx of [-1, 1]) { ctx.fillRect(tx + sx * th * .32 - pw / 2, G - th * .82, pw, th * .82); ctx.strokeRect(tx + sx * th * .32 - pw / 2, G - th * .82, pw, th * .82); }
+  ctx.fillRect(tx - th * .45, G - th * .72, th * .9, th * .07); ctx.strokeRect(tx - th * .45, G - th * .72, th * .9, th * .07);
+  ctx.fillStyle = '#2b1b1b'; ctx.beginPath(); ctx.moveTo(tx - th * .58, G - th * .93); ctx.quadraticCurveTo(tx, G - th * .84, tx + th * .58, G - th * .93); ctx.lineTo(tx + th * .52, G - th * .84); ctx.quadraticCurveTo(tx, G - th * .78, tx - th * .52, G - th * .84); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#e0442f'; ctx.fillRect(tx - th * .52, G - th * .86, th * 1.04, th * .05);
+  // ground and stone path
+  ctx.fillStyle = dk > .5 ? '#6b9a5a' : '#2e4636'; ctx.beginPath(); ctx.moveTo(0, H); for (let x = 0; x <= W; x += 20) ctx.lineTo(x, G + Math.sin(x * .01) * 4); ctx.lineTo(W, H); ctx.fill();
+  ctx.fillStyle = 'rgba(200,190,170,.35)'; for (let x = 10; x < W; x += 70) { ctx.beginPath(); ctx.ellipse(x, G + (H - G) * .45, 26, 9, 0, 0, 7); ctx.fill(); }
+  ctx.strokeStyle = dk > .5 ? '#4f7a40' : '#3f6a4a'; ctx.lineWidth = 3;
+  for (const gr of S.grass) for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(gr.x, G + 4); ctx.quadraticCurveTo(gr.x + k * gr.s * .3, G - gr.s * .6, gr.x + k * gr.s * .6, G - gr.s); ctx.stroke(); }
+  // lantern strings across the top
+  for (const row of [0, 1]) {
+    const y0 = H * (.04 + row * .08), sag = H * .045, n = Math.max(3, Math.round(W / 190)) + row;
+    ctx.strokeStyle = '#5a4030'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, y0); ctx.quadraticCurveTo(W / 2, y0 + sag * 2, W, y0); ctx.stroke();
+    for (let i = 0; i < n; i++) {
+      const u = (i + .5 + row * .5) / (n + row * .5), x = u * W, y = y0 + 4 * sag * u * (1 - u) + 4, sw = reduce ? 0 : Math.sin(t * .0015 + i + row) * .08, s = Math.min(W, H) * .045;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(sw); ctx.translate(0, s * .62);
+      ctx.fillStyle = `rgba(255,170,90,${.14 * (1 - dk)})`; ctx.beginPath(); ctx.arc(0, 0, s * 1.1, 0, 7); ctx.fill();
+      lanternShape(ctx, s, true); ctx.restore();
+    }
+  }
+  // drifting will-o'-wisps
+  for (const w of S.wisps) {
+    w.ph += .01; const x = w.x + Math.sin(w.ph) * 40, y = w.y + Math.cos(w.ph * 1.3) * 20;
+    const r = w.s, sway = Math.sin(w.ph * 3) * r * .4;
+    ctx.globalAlpha = .8 * (1 - dk); ctx.shadowColor = '#8fe0ff'; ctx.shadowBlur = 18;
+    ctx.fillStyle = '#c8f0ff'; ctx.beginPath(); ctx.arc(x, y, r * 1.2, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - r * 1.15, y - r * .3); ctx.quadraticCurveTo(x - r * .6 + sway, y - r * 2.4, x + sway * 2, y - r * 3.2); ctx.quadraticCurveTo(x + r * .5 + sway, y - r * 1.6, x + r * 1.15, y - r * .3); ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = '#2b3a6b'; for (const k of [-1, 1]) { ctx.beginPath(); ctx.arc(x + k * r * .4, y, r * .14, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* ---------- yokai drawings (all take a context so the same art makes the samples) ---------- */
+function eye1(x, r, look = 0) { x.fillStyle = '#fff'; x.strokeStyle = '#222'; x.lineWidth = Math.max(2, r * .12); x.beginPath(); x.arc(0, 0, r, 0, 7); x.fill(); x.stroke(); x.fillStyle = '#222'; x.beginPath(); x.arc(r * .2 + look, r * .05, r * .5, 0, 7); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(r * .35 + look, -r * .15, r * .15, 0, 7); x.fill(); }
+function drawKarakasa(x, s, tongue = 1) { // umbrella ghost: one eye, long tongue, one leg on a geta
+  x.lineJoin = x.lineCap = 'round';
+  x.strokeStyle = '#6b4a2a'; x.lineWidth = s * .07; x.beginPath(); x.moveTo(0, -s * .2); x.lineTo(0, s * .35); x.stroke();
+  x.fillStyle = '#7a5230'; x.fillRect(-s * .2, s * .35, s * .4, s * .08); x.fillRect(-s * .16, s * .43, s * .07, s * .08); x.fillRect(s * .09, s * .43, s * .07, s * .08);
+  x.fillStyle = '#9b6fd6'; x.strokeStyle = '#4a2f73'; x.lineWidth = Math.max(3, s * .04);
+  x.beginPath(); x.moveTo(0, -s * 1.15); x.lineTo(s * .55, -s * .2); for (let k = 4; k >= -4; k--) x.quadraticCurveTo(k * s * .1375 + s * .07, -s * .12, k * s * .1375, -s * .2); x.closePath(); x.fill(); x.stroke();
+  x.strokeStyle = 'rgba(74,47,115,.6)'; for (const k of [-.3, 0, .3]) { x.beginPath(); x.moveTo(0, -s * 1.12); x.lineTo(k * s, -s * .2); x.stroke(); }
+  x.fillStyle = '#ffd25a'; x.beginPath(); x.moveTo(0, -s * 1.15); x.lineTo(-s * .06, -s * 1.3); x.lineTo(s * .06, -s * 1.3); x.closePath(); x.fill();
+  x.save(); x.translate(0, -s * .62); eye1(x, s * .16); x.restore();
+  x.fillStyle = '#ff6b8a'; x.strokeStyle = '#b8344f'; x.lineWidth = Math.max(2, s * .03);
+  x.beginPath(); x.moveTo(-s * .08, -s * .38); x.quadraticCurveTo(s * .02, -s * .38 + s * .28 * tongue, s * .09, -s * .38 + s * .3 * tongue); x.quadraticCurveTo(s * .14, -s * .38 + s * .15 * tongue, s * .08, -s * .38); x.closePath(); x.fill(); x.stroke();
+}
+function drawChochin(x, s, open = .3, glow = 1) { // lantern ghost
+  x.fillStyle = `rgba(255,170,90,${.25 * glow})`; x.beginPath(); x.arc(0, 0, s * (.95 + .3 * glow), 0, 7); x.fill();
+  lanternShape(x, s, true);
+  x.save(); x.translate(-s * .02, -s * .12); eye1(x, s * .14); x.restore();
+  x.fillStyle = '#7a1f1a'; x.beginPath(); x.ellipse(0, s * .2, s * .22, s * (.05 + .1 * open), 0, 0, 7); x.fill();
+  x.fillStyle = '#ff8fa3'; x.beginPath(); x.ellipse(s * .03, s * (.24 + .12 * open), s * .08, s * (.06 + .1 * open), .2, 0, 7); x.fill();
+}
+function drawFox(x, s, step = 0, lantern = true) { // kitsune walking on two legs, holding a little lantern
+  const o = '#f29a3a', l = '#8a4a12', b = Math.abs(Math.sin(step)) * s * .04;
+  x.lineJoin = x.lineCap = 'round'; x.translate(0, -b);
+  x.fillStyle = o; x.strokeStyle = l; x.lineWidth = Math.max(2, s * .04);
+  for (const k of [0, 1]) { const a = Math.sin(step + k * Math.PI) * .4; x.save(); x.translate(k ? s * .08 : -s * .08, s * .1); x.rotate(a); x.fillRect(-s * .05, 0, s * .1, s * .28); x.strokeRect(-s * .05, 0, s * .1, s * .28); x.restore(); }
+  x.beginPath(); x.moveTo(-s * .15, s * .05); x.quadraticCurveTo(-s * .55, -s * .05, -s * .5, -s * .45); x.quadraticCurveTo(-s * .35, -s * .1, -s * .1, -s * .1); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#fff'; x.beginPath(); x.ellipse(-s * .49, -s * .4, s * .07, s * .1, -.3, 0, 7); x.fill();
+  x.fillStyle = o; x.beginPath(); x.ellipse(0, -s * .05, s * .2, s * .25, 0, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#fff3e0'; x.beginPath(); x.ellipse(s * .03, 0, s * .1, s * .16, 0, 0, 7); x.fill();
+  x.fillStyle = o; x.beginPath(); x.ellipse(s * .05, -s * .42, s * .2, s * .17, 0, 0, 7); x.fill(); x.stroke();
+  for (const ex of [-1, 1]) { x.beginPath(); x.moveTo(s * .05 + ex * s * .06, -s * .55); x.lineTo(s * .05 + ex * s * .14, -s * .75); x.lineTo(s * .05 + ex * s * .18, -s * .5); x.closePath(); x.fill(); x.stroke(); }
+  x.fillStyle = '#fff3e0'; x.beginPath(); x.moveTo(s * .1, -s * .45); x.quadraticCurveTo(s * .3, -s * .38, s * .28, -s * .33); x.quadraticCurveTo(s * .12, -s * .28, s * .02, -s * .34); x.closePath(); x.fill();
+  x.fillStyle = '#222'; x.beginPath(); x.arc(s * .29, -s * .35, s * .025, 0, 7); x.fill();
+  x.strokeStyle = '#222'; x.lineWidth = Math.max(2, s * .025); x.beginPath(); x.arc(s * .1, -s * .46, s * .04, Math.PI * 1.1, Math.PI * 1.9); x.stroke();
+  x.fillStyle = 'rgba(230,80,80,.6)'; x.beginPath(); x.arc(s * .16, -s * .38, s * .03, 0, 7); x.fill();
+  if (lantern) { x.strokeStyle = '#6b4a2a'; x.lineWidth = Math.max(2, s * .03); x.beginPath(); x.moveTo(s * .15, -s * .1); x.lineTo(s * .38, -s * .38); x.stroke(); x.save(); x.translate(s * .4, -s * .22); x.rotate(Math.sin(step) * .2); lanternShape(x, s * .22, true); x.restore(); }
+}
+function drawNeko(x, s, step = 0) { // two-tailed cat
+  const c = '#3a3a48', l = '#15151c', b = Math.abs(Math.sin(step)) * s * .03;
+  x.lineJoin = x.lineCap = 'round'; x.translate(0, -b);
+  x.strokeStyle = c; x.lineWidth = s * .07;
+  for (const k of [0, 1]) { x.beginPath(); x.moveTo(-s * .38, -s * .15); x.quadraticCurveTo(-s * .6 - k * s * .1, -s * .5 + Math.sin(step * .5 + k) * s * .1, -s * .45 - k * s * .2, -s * .75 + k * s * .08); x.stroke(); }
+  x.fillStyle = c; x.strokeStyle = l; x.lineWidth = Math.max(2, s * .03);
+  for (const [lx, k] of [[-.28, 0], [-.18, 1], [.18, 1], [.28, 0]]) { const a = Math.sin(step + k * Math.PI) * .35; x.save(); x.translate(lx * s, s * .02); x.rotate(a); x.fillRect(-s * .04, 0, s * .08, s * .22); x.restore(); }
+  x.beginPath(); x.ellipse(0, -s * .08, s * .4, s * .18, 0, 0, 7); x.fill();
+  x.beginPath(); x.ellipse(s * .38, -s * .3, s * .19, s * .16, 0, 0, 7); x.fill();
+  for (const ex of [-1, 1]) { x.beginPath(); x.moveTo(s * .38 + ex * s * .06, -s * .42); x.lineTo(s * .38 + ex * s * .15, -s * .55); x.lineTo(s * .38 + ex * s * .17, -s * .36); x.closePath(); x.fill(); }
+  x.fillStyle = '#fff'; x.beginPath(); x.ellipse(s * .3, -s * .02, s * .1, s * .08, 0, 0, 7); x.fill();
+  x.fillStyle = '#ffd84a'; for (const ex of [-1, 1]) { x.beginPath(); x.ellipse(s * .38 + ex * s * .07, -s * .32, s * .04, s * .05, 0, 0, 7); x.fill(); }
+  x.fillStyle = '#111'; for (const ex of [-1, 1]) { x.beginPath(); x.ellipse(s * .38 + ex * s * .07, -s * .32, s * .012, s * .04, 0, 0, 7); x.fill(); }
+  x.fillStyle = '#ff8fa3'; x.beginPath(); x.arc(s * .38, -s * .25, s * .02, 0, 7); x.fill();
+  x.strokeStyle = '#ddd'; x.lineWidth = 1.5; for (const k of [-1, 1]) { x.beginPath(); x.moveTo(s * .42, -s * .24); x.lineTo(s * .58, -s * .26 + k * s * .03); x.stroke(); }
+}
+function drawHitotsume(x, s, eye = 1) { // one-eyed little monk boy
+  x.lineJoin = x.lineCap = 'round';
+  x.fillStyle = '#4a6fb5'; x.strokeStyle = '#223a6b'; x.lineWidth = Math.max(2, s * .04);
+  x.beginPath(); x.moveTo(-s * .25, s * .45); x.lineTo(-s * .18, -s * .02); x.lineTo(s * .18, -s * .02); x.lineTo(s * .25, s * .45); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#ffd25a'; x.fillRect(-s * .21, s * .12, s * .42, s * .07);
+  x.fillStyle = '#ffe0c2'; x.strokeStyle = '#a8724a'; x.beginPath(); x.arc(0, -s * .25, s * .26, 0, 7); x.fill(); x.stroke();
+  x.save(); x.translate(0, -s * .28); eye1(x, s * .12 * eye); x.restore();
+  x.fillStyle = 'rgba(230,100,100,.5)'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .17, -s * .15, s * .04, 0, 7); x.fill(); }
+  x.strokeStyle = '#a8724a'; x.beginPath(); x.arc(0, -s * .1, s * .05, .2, Math.PI - .2); x.stroke();
+}
+function drawOni(x, s, step = 0, beat = 0) { // little red oni carrying a taiko drum
+  const r = '#ef5a4a', l = '#8a2a20', b = Math.abs(Math.sin(step)) * s * .03;
+  x.lineJoin = x.lineCap = 'round'; x.translate(0, -b);
+  x.fillStyle = '#c98a3a'; x.strokeStyle = '#6b4a1a'; x.lineWidth = Math.max(2, s * .03); // drum on the back
+  x.beginPath(); x.ellipse(-s * .28, -s * .15, s * .2, s * .26, 0, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#f7e6c4'; x.beginPath(); x.ellipse(-s * .2, -s * .15, s * .13, s * .22, 0, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = r; x.strokeStyle = l;
+  for (const k of [0, 1]) { const a = Math.sin(step + k * Math.PI) * .35; x.save(); x.translate(k ? s * .1 : -s * .08, s * .12); x.rotate(a); x.fillRect(-s * .06, 0, s * .12, s * .26); x.strokeRect(-s * .06, 0, s * .12, s * .26); x.restore(); }
+  x.beginPath(); x.ellipse(0, -s * .02, s * .22, s * .22, 0, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#ffd25a'; x.fillRect(-s * .2, s * .04, s * .4, s * .12); x.fillStyle = '#222'; for (let k = -2; k <= 2; k++) { x.beginPath(); x.arc(k * s * .08, s * .1, s * .025, 0, 7); x.fill(); }
+  x.fillStyle = r; x.beginPath(); x.arc(s * .03, -s * .4, s * .23, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#ffe9a8'; x.strokeStyle = '#8a6a20'; x.beginPath(); x.moveTo(-s * .05, -s * .6); x.lineTo(s * .02, -s * .8); x.lineTo(s * .09, -s * .6); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#3a2a1a'; x.beginPath(); x.arc(s * .03, -s * .55, s * .14, Math.PI, 0); x.fill();
+  for (const ex of [-1, 1]) { x.save(); x.translate(s * .03 + ex * s * .09, -s * .4); eye1(x, s * .055); x.restore(); }
+  x.strokeStyle = l; x.lineWidth = Math.max(2, s * .03); x.beginPath(); x.arc(s * .03, -s * .3, s * .07, .2, Math.PI - .2); x.stroke();
+  x.fillStyle = '#fff'; for (const ex of [-1, 1]) { x.beginPath(); x.moveTo(s * .03 + ex * s * .05, -s * .26); x.lineTo(s * .03 + ex * s * .035, -s * .21); x.lineTo(s * .03 + ex * s * .02, -s * .26); x.fill(); }
+  x.strokeStyle = '#7a5230'; x.lineWidth = s * .04; const sa = beat > 0 ? -1.2 * beat : .3; // drumstick
+  x.save(); x.translate(s * .18, -s * .05); x.rotate(sa); x.beginPath(); x.moveTo(0, 0); x.lineTo(s * .28, 0); x.stroke(); x.fillStyle = '#fff'; x.beginPath(); x.arc(s * .28, 0, s * .04, 0, 7); x.fill(); x.restore();
+}
+function drawGhost(x, s, ph = 0) { // simple white obake
+  x.fillStyle = '#fbfbff'; x.strokeStyle = '#7a7aa8'; x.lineWidth = Math.max(2, s * .04); x.lineJoin = 'round';
+  x.beginPath(); x.moveTo(-s * .4, s * .3); x.lineTo(-s * .4, -s * .1); x.arc(0, -s * .1, s * .4, Math.PI, 0); x.lineTo(s * .4, s * .3);
+  for (let k = 3; k >= 0; k--) x.quadraticCurveTo(-s * .4 + (k + .5) * s * .2, s * (.42 + .05 * Math.sin(ph + k)), -s * .4 + k * s * .2, s * .3);
+  x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#222'; for (const k of [-1, 1]) { x.beginPath(); x.ellipse(k * s * .13 + s * .04, -s * .1, s * .05, s * .07, 0, 0, 7); x.fill(); }
+  x.fillStyle = 'rgba(255,140,170,.6)'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .22 + s * .04, s * .02, s * .05, 0, 7); x.fill(); }
+  x.fillStyle = '#ff6b8a'; x.beginPath(); x.ellipse(s * .05, s * .07, s * .06, s * .08, 0, 0, 7); x.fill();
+  x.fillStyle = '#fbfbff'; x.strokeStyle = '#7a7aa8'; x.beginPath(); x.ellipse(s * .43, s * .02, s * .1, s * .06, -.6, 0, 7); x.fill(); x.stroke();
+}
+function drawRokuro(x, s, neck = 0, step = 0) { // girl in a kimono whose neck can stretch
+  const b = Math.abs(Math.sin(step)) * s * .02; x.translate(0, -b); x.lineJoin = x.lineCap = 'round';
+  x.fillStyle = '#f28bb0'; x.strokeStyle = '#8a2f55'; x.lineWidth = Math.max(2, s * .03);
+  x.beginPath(); x.moveTo(-s * .22, s * .45); x.lineTo(-s * .14, -s * .25); x.lineTo(s * .14, -s * .25); x.lineTo(s * .22, s * .45); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#fff'; for (const [a, c] of [[-.08, .25], [.1, .05], [-.05, -.1], [.08, .32]]) { x.beginPath(); x.arc(a * s, c * s, s * .03, 0, 7); x.fill(); }
+  x.fillStyle = '#ffd25a'; x.fillRect(-s * .16, -s * .05, s * .32, s * .09);
+  const hy = -s * .38 - neck * s * 1.2, sway = Math.sin(step * 2 + neck * 4) * neck * s * .15;
+  x.strokeStyle = '#a8724a'; x.lineWidth = s * .09; x.beginPath(); x.moveTo(0, -s * .25); x.bezierCurveTo(sway, -s * .3 - neck * s * .4, -sway, hy + s * .3, sway * .5, hy + s * .1); x.stroke();
+  x.strokeStyle = '#ffe0c2'; x.lineWidth = s * .06; x.beginPath(); x.moveTo(0, -s * .25); x.bezierCurveTo(sway, -s * .3 - neck * s * .4, -sway, hy + s * .3, sway * .5, hy + s * .1); x.stroke();
+  x.save(); x.translate(sway * .5, hy);
+  x.fillStyle = '#222'; x.beginPath(); x.arc(0, -s * .02, s * .17, 0, 7); x.fill(); x.beginPath(); x.arc(0, -s * .18, s * .08, 0, 7); x.fill();
+  x.fillStyle = '#ffe0c2'; x.strokeStyle = '#a8724a'; x.lineWidth = Math.max(2, s * .02); x.beginPath(); x.arc(s * .02, s * .02, s * .13, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#222'; x.fillRect(-s * .1, -s * .1, s * .24, s * .06);
+  for (const k of [-1, 1]) { x.beginPath(); x.arc(s * .02 + k * s * .05, s * .01, s * .018, 0, 7); x.fill(); }
+  x.fillStyle = 'rgba(230,100,120,.55)'; for (const k of [-1, 1]) { x.beginPath(); x.arc(s * .02 + k * s * .08, s * .06, s * .025, 0, 7); x.fill(); }
+  x.fillStyle = '#e0442f'; x.beginPath(); x.arc(s * .1, -s * .14, s * .03, 0, 7); x.fill();
+  x.restore();
+}
+function drawTengu(x, s, flap = 0, fan = 0) { // flying tengu with a leaf fan
+  x.lineJoin = x.lineCap = 'round';
+  x.fillStyle = '#3a3a48'; x.strokeStyle = '#15151c'; x.lineWidth = Math.max(2, s * .03);
+  for (const k of [-1, 1]) { x.beginPath(); x.moveTo(-s * .05, -s * .05); x.quadraticCurveTo(-s * .45, k * s * (.35 + flap * .3) - s * .2, -s * .6, k * s * (.15 + flap * .3) - s * .1); x.quadraticCurveTo(-s * .3, -s * .02, -s * .05, s * .1); x.closePath(); x.fill(); x.stroke(); }
+  x.fillStyle = '#e8e4d8'; x.strokeStyle = '#6b6a5a'; x.beginPath(); x.ellipse(0, s * .05, s * .18, s * .25, 0, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#e8584a'; x.strokeStyle = '#8a2a20'; x.beginPath(); x.arc(s * .05, -s * .3, s * .17, 0, 7); x.fill(); x.stroke();
+  x.beginPath(); x.moveTo(s * .15, -s * .32); x.quadraticCurveTo(s * .45, -s * .34, s * .48, -s * .28); x.quadraticCurveTo(s * .4, -s * .24, s * .15, -s * .24); x.closePath(); x.fill(); x.stroke(); // long nose
+  x.fillStyle = '#222'; x.fillRect(-s * .02, -s * .5, s * .14, s * .08);
+  x.fillStyle = '#222'; x.beginPath(); x.arc(s * .1, -s * .36, s * .025, 0, 7); x.fill();
+  x.fillStyle = '#fff'; x.beginPath(); x.ellipse(s * .02, -s * .18, s * .08, s * .05, 0, 0, 7); x.fill();
+  x.save(); x.translate(s * .18, s * .05); x.rotate(-.6 - fan * 1.6); x.fillStyle = '#5aa04a'; x.strokeStyle = '#2f6a2a';
+  x.beginPath(); x.moveTo(0, 0); for (let k = 0; k < 7; k++) { const a = -Math.PI / 2 + (k - 3) * .3; x.lineTo(Math.cos(a) * s * .32, Math.sin(a) * s * .32); } x.closePath(); x.fill(); x.stroke(); x.restore();
+}
+function drawMomen(v) { // a long white cloth fluttering through the sky
+  const N = 30, L = v.L, pts = [];
+  for (let i = 0; i <= N; i++) { const u = i / N; pts.push([v.x - v.dir * u * L, v.y + Math.sin(u * 6 - v.t * 4) * L * .06 * (.3 + u)]); }
+  ctx.fillStyle = '#fbfbf5'; ctx.strokeStyle = '#a8a89a'; ctx.lineWidth = 3; ctx.beginPath();
+  pts.forEach(([x, y], i) => { const w = L * .07 * (1 - i / N * .5); i ? ctx.lineTo(x, y - w) : ctx.moveTo(x, y - w); });
+  for (let i = N; i >= 0; i--) { const [x, y] = pts[i], w = L * .07 * (1 - i / N * .5); ctx.lineTo(x, y + w); }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  const [hx, hy] = pts[2]; ctx.fillStyle = '#222'; for (const k of [-1, 1]) { ctx.beginPath(); ctx.ellipse(hx, hy + k * L * .025, L * .008, L * .016, 0, 0, 7); ctx.fill(); }
+  return pts;
+}
+
+/* ---------- yokai visitors ---------- */
+function spawnYokai(kind) {
+  const m = Math.min(W, H), side = Math.random() < .5 ? 1 : -1, G = GROUND();
+  const base = {kind, layer: 'front', dir: side, t: 0, step: 0};
+  const add = (o) => visitors.push(Object.assign(base, o));
+  if (kind === 'karakasa') add({s: m * .26, x: side > 0 ? -m * .2 : W + m * .2, y: G});
+  else if (kind === 'chochin') add({s: m * .24, x: side > 0 ? -m * .2 : W + m * .2, y: H * (.35 + Math.random() * .15)});
+  else if (kind === 'momen') add({L: Math.max(W * .5, m * .9), x: side > 0 ? -20 : W + 20, y: H * (.22 + Math.random() * .15)});
+  else if (kind === 'rokuro') add({s: m * .3, x: side > 0 ? -m * .2 : W + m * .2, y: G, neck: 0});
+  else if (kind === 'kitsune') add({s: m * .2, x: side > 0 ? -m * .2 : W + m * .2, y: G, n: 3});
+  else if (kind === 'neko') add({s: m * .26, x: side > 0 ? -m * .3 : W + m * .3, y: G});
+  else if (kind === 'hitotsume') add({s: m * .24, x: side > 0 ? -m * .2 : W + m * .2, y: G});
+  else if (kind === 'tengu') add({s: m * .26, x: side > 0 ? -m * .3 : W + m * .3, y: H * (.2 + Math.random() * .1)});
+  else if (kind === 'oni') add({s: m * .28, x: side > 0 ? -m * .3 : W + m * .3, y: G});
+}
+function drawYokaiVisitor(v, dt, P) {
+  const G = GROUND(), act = P >= 0, s = v.s;
+  const off = () => v.dir > 0 ? v.x - (v.s || v.L) > W : v.x + (v.s || v.L) < 0;
+  if (v.kind === 'momen') {
+    v.x += v.dir * (act ? 60 : 120) * dt; v.y += Math.sin(v.t) * 10 * dt;
+    if (act) { ctx.translate(v.x, v.y); ctx.rotate(-v.dir * P * Math.PI * 2); ctx.translate(-v.x, -v.y); }
+    drawMomen(v); return v.dir > 0 ? v.x - v.L < W + 40 : v.x + v.L > -40;
+  }
+  if (v.kind === 'chochin' || v.kind === 'tengu') { // flyers
+    v.x += v.dir * (act && v.kind === 'chochin' ? 10 : 55) * dt; v.y += Math.sin(v.t * 1.5) * 18 * dt;
+    if (v.kind === 'tengu' && act && Math.random() < .5) fx.push({k: 'leaf', x: v.x + v.dir * s * .3, y: v.y + (Math.random() - .5) * s, vx: v.dir * (300 + Math.random() * 300), vy: (Math.random() - .5) * 120, a: 1.4, s: s * .08, ph: Math.random() * 6});
+    ctx.translate(v.x, v.y); ctx.scale(v.dir, 1);
+    if (v.kind === 'chochin') { ctx.rotate(Math.sin(v.t * 2) * .1); drawChochin(ctx, s, act ? .5 + .5 * Math.sin(P * 30) : .25 + .15 * Math.sin(v.t * 3), act ? 2 : 1); if (act && Math.random() < .4) fx.push({k: 'fire', x: v.x, y: v.y - s * .6, vx: (Math.random() - .5) * 60, vy: -80 - Math.random() * 60, a: 1, s: s * .12}); }
+    else drawTengu(ctx, s, Math.sin(v.t * 8), act ? Math.sin(P * Math.PI * 4) : 0);
+    return !off();
+  }
+  // walkers / hoppers on the ground
+  const speed = {karakasa: 70, rokuro: 40, kitsune: 45, neko: 60, hitotsume: 55, oni: 50}[v.kind];
+  const stop = act && (v.kind === 'rokuro' || v.kind === 'hitotsume' || v.kind === 'oni' || v.kind === 'karakasa');
+  if (!stop) { v.x += v.dir * speed * dt; v.step += dt * speed * .14; }
+  if (v.kind === 'karakasa') {
+    const hop = Math.abs(Math.sin(v.step * .8)) * s * .45;
+    ctx.translate(v.x, G - s * .5 - hop); ctx.scale(v.dir, 1); if (act) ctx.rotate(P * Math.PI * 2);
+    drawKarakasa(ctx, s, act ? 1 + Math.sin(P * Math.PI) * 2.2 : .7 + .3 * Math.sin(v.t * 4));
+  } else if (v.kind === 'rokuro') {
+    v.neck += ((act ? 1 : 0) - v.neck) * Math.min(1, dt * (act ? 2.5 : 4));
+    ctx.translate(v.x, G - s * .45); ctx.scale(v.dir, 1); drawRokuro(ctx, s, v.neck, v.step);
+  } else if (v.kind === 'kitsune') {
+    for (let i = 0; i < v.n; i++) { ctx.save(); ctx.translate(v.x - v.dir * i * s * 1.1, G - s * .38); ctx.scale(v.dir, 1); if (act) ctx.translate(0, -Math.abs(Math.sin(P * Math.PI * 2 + i)) * s * .3); drawFox(ctx, s, v.step + i); ctx.restore(); }
+    if (act && Math.random() < .5) fx.push({k: 'foxfire', x: v.x - v.dir * Math.random() * s * 2.2, y: G - s * (.6 + Math.random() * .8), vx: (Math.random() - .5) * 40, vy: -30 - Math.random() * 40, a: 1.2, s: s * .1});
+    const tail = v.x - v.dir * (v.n - 1) * s * 1.1; return v.dir > 0 ? tail - s < W : tail + s > 0;
+  } else if (v.kind === 'neko') {
+    const j = act ? Math.sin(P * Math.PI) * s * .9 : 0;
+    ctx.translate(v.x, G - s * .22 - j); ctx.scale(v.dir, 1); if (act) ctx.rotate(-Math.sin(P * Math.PI) * .3); drawNeko(ctx, s, v.step);
+  } else if (v.kind === 'hitotsume') {
+    const hop = Math.abs(Math.sin(v.step * .9)) * s * .2;
+    ctx.translate(v.x, G - s * .45 - hop); ctx.scale(v.dir, 1); drawHitotsume(ctx, s, act ? 1 + Math.sin(Math.min(1, P * 3) * Math.PI / 2) * 1.6 * (P < .8 ? 1 : (1 - P) * 5) : 1);
+  } else if (v.kind === 'oni') {
+    ctx.translate(v.x, G - s * .38); ctx.scale(v.dir, 1); drawOni(ctx, s, v.step, act ? Math.abs(Math.sin(P * Math.PI * 6)) : 0);
+  }
+  return !off();
+}
+function tapYokai(px, py) {
+  const G = GROUND(), inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
+  const start = (v, d, say, sx, sy) => { if (v.act > 0) return false; v.act = d; v.actDur = d; SND.visitor(v.kind); if (say) pops.push({x: sx, y: sy, a: 1, text: say}); return true; };
+  for (let i = visitors.length - 1; i >= 0; i--) {
+    const v = visitors[i], s = v.s;
+    switch (v.kind) {
+      case 'karakasa': if (inBox(v.x, G - s * .7, s * 1.1, s * 1.5) && start(v, 1.4, 'べろ〜ん', v.x, G - s * 1.6)) return true; break;
+      case 'chochin': if (inBox(v.x, v.y, s, s * 1.2) && start(v, 1.6, 'ボッ！', v.x, v.y - s)) return true; break;
+      case 'momen': if (v.L && Math.abs(py - v.y) < v.L * .12 && (v.dir > 0 ? px < v.x + 20 && px > v.x - v.L : px > v.x - 20 && px < v.x + v.L) && start(v, 1.6, 'ひらり〜', px, v.y - v.L * .15)) return true; break;
+      case 'rokuro': if (inBox(v.x, G - s * .6, s * .7, s * 1.3) && start(v, 3, 'の〜び〜る〜', v.x, G - s * 2.2)) return true; break;
+      case 'kitsune': if (Math.abs(py - (G - s * .4)) < s * .7 && Math.min(v.x, v.x - v.dir * (v.n - 1) * s * 1.1) - s * .6 < px && px < Math.max(v.x, v.x - v.dir * (v.n - 1) * s * 1.1) + s * .6 && start(v, 1.6, 'コン！', px, G - s * 1.3)) return true; break;
+      case 'neko': if (inBox(v.x, G - s * .3, s * 1.1, s * .7) && start(v, 1.1, 'ニャ〜ン', v.x, G - s * 1.4)) { burst('heart', v.x, G - s * .8, 6, s * .06, 90); return true; } break;
+      case 'hitotsume': if (inBox(v.x, G - s * .6, s * .7, s * 1.1) && start(v, 1.4, 'ばあっ！', v.x, G - s * 1.4)) return true; break;
+      case 'tengu': if (inBox(v.x, v.y, s * 1.2, s * 1.1) && start(v, 1.4, 'びゅ〜ん！', v.x, v.y - s * .8)) { for (const c of creatures) { c.boost = 3; c.vx = v.dir * Math.abs(c.vx); } return true; } break;
+      case 'oni': if (inBox(v.x, G - s * .6, s * .9, s * 1.2) && start(v, 2, 'ドンドン！', v.x, G - s * 1.5)) { shake = Math.max(shake, 6); return true; } break;
+    }
+  }
+  return false;
+}
+
+/* ---------- dawn: drawings older than LIFE float up into the morning sky ---------- */
+function checkDawn() {
+  if (dawn) return;
+  if (expired().length) { dawn = {t: 0, k: 0, said: false}; SND.rooster(); pops.push({x: W / 2, y: H * .2, a: 1, text: 'コケコッコー！ あさだよ〜'}); }
+}
+function updateDawn(dt) {
+  if (!dawn) return;
+  dawn.t += dt;
+  dawn.k = dawn.t < 2 ? dawn.t / 2 : dawn.t < 6 ? 1 : Math.max(0, 1 - (dawn.t - 6) / 2);
+  if (dawn.t > 1.5 && dawn.t < 6) for (const c of expired()) { c.ascend = {a: 1}; c.fear = false; pops.push({x: c.x, y: c.y - c.h * .6, a: 1, text: 'またね〜'}); SND.twinkle(); }
+  if (dawn.t > 8) dawn = null;
+}
+function updateAscend(c, dt) { // returns false when gone
+  c.ascend.a -= dt * .35; c.y -= 70 * dt; c.x += Math.sin(c.ph * 2) * 20 * dt; c.ph += dt;
+  if (Math.random() < .5) fx.push({k: 'spark', x: c.x + (Math.random() - .5) * c.w, y: c.y + (Math.random() - .5) * c.h, vx: 0, vy: -20, a: .9, s: c.w * .05});
+  return c.ascend.a > 0;
+}
+
+/* ---------- yokai samples ---------- */
+const ykSprite = (w, h, fn) => sprite(w, h, x => { x.translate(w / 2, h / 2); fn(x); });
+const yokaiSamples = [
+  ['見本：おばけ', ykSprite(220, 220, x => drawGhost(x, 200)), {mode: 'float'}],
+  ['見本：からかさ', ykSprite(200, 290, x => { x.translate(0, 40); drawKarakasa(x, 190, .8); }), {mode: 'hop', small: true}],
+  ['見本：きつね', ykSprite(260, 260, x => { x.translate(0, 40); drawFox(x, 230, 0, true); }), {mode: 'swim'}],
+];
 
 resize();
-(WORLD === 'dino' ? dinoSamples : samples).forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));
+SAMPLES().forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));
 showWorld();
 requestAnimationFrame(loop);
 })();

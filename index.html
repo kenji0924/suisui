@@ -3967,7 +3967,7 @@ function tapPrincess(px, py) {
         if (best) { v.dance = {c: best, t: 0, ph: 'go'}; best.dance = {v}; best.target = null; }
         return true;
       } break;
-      case 'aladdin': if (inBox(v.hx ?? v.x, (v.hy ?? v.y) - s * .2, s * 1.1, s * .7) && start(v, 2.6, 'まほうの じゅうたん〜！', v.hx ?? v.x, (v.hy ?? v.y) - s * .8)) { fx.push({k: 'puff', x: v.x + v.dir * s * .35, y: v.y - s * .4, vx: 0, vy: -20, a: 1, s: s * .3}); for (const c of creatures) burst('spark', c.x, c.y - c.h * .4, 6, c.w * .06, 120); return true; } break;
+      case 'aladdin': if (inBox(v.hx ?? v.x, (v.hy ?? v.y) - s * .2, s * 1.1, s * .7) && start(v, 2.6, '', 0, 0)) { fx.push({k: 'puff', x: v.x + v.dir * s * .35, y: v.y - s * .4, vx: 0, vy: -20, a: 1, s: s * .3}); for (const c of creatures) burst('spark', c.x, c.y - c.h * .4, 6, c.w * .06, 120); return true; } break;
       case 'frog': if (inBox(v.x, G - s * .4, s, s, 30) && start(v, 1.4, 'ポンッ！ ケロ〜ン♪', v.x, G - s * 2)) { fx.push({k: 'puff', x: v.x, y: G - s * .4, vx: 0, vy: 0, a: 1, s: s * .9}); burst('heart', v.x, G - s, 5, s * .15, 120); return true; } break;
       case 'mice': { const mid = v.x - v.dir * s * 1.1; if (inBox(mid, G - s * .5, s * 3.4, s * 1.1) && start(v, 2.4, 'パンパカパーン♪', mid, G - s * 1.7)) return true; break; }
       case 'majo': if (inBox(v.x, v.y - s * .45, s * .6, s, 25) && start(v, 2.2, 'ちちんぷいぷい〜！', v.x, v.y - s * 1.2)) { for (const c of creatures) { c.crown = 12; burst('spark', c.x, c.y - c.h * .6, 5, c.w * .06, 80); } return true; } break;
@@ -3994,7 +3994,7 @@ function updateMidnight(dt) {
     const dir = c.x < W / 2 ? -1 : 1;
     c.ascend = {a: 1, home: true, dir}; c.vx = dir * 100; c.dir = dir; c.flip = false;
     fx.push({k: 'slipper', x: c.x, y: GROUND() - 2, vx: 0, vy: 0, a: 4.5, s: Math.min(W, H) * .055, flip: -dir});
-    pops.push({x: c.x, y: c.y - c.h * .6, a: 1, text: 'またあしたね〜'}); SND.twinkle();
+    pops.push({x: c.x, y: c.y - c.h * .6, a: 1, text: 'もういかないと'}); SND.twinkle();
   }
   if (M.t > 11) midnight = null;
 }

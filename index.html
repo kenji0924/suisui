@@ -1677,6 +1677,17 @@ const PAINT = (() => {
       t.line(p => { p.moveTo(200, 230); p.lineTo(215, 320); p.moveTo(130, 200); p.lineTo(170, 310); p.moveTo(400, 225); p.lineTo(385, 315); p.moveTo(470, 195); p.lineTo(430, 310); });
       t.dot(365, 300, 9);
     }},
+    {name: 'ブラキオ', world: 'dino', mode: 'swim', draw(t) {
+      t.part(p => { p.moveTo(160, 345); p.quadraticCurveTo(70, 370, 10, 470); p.quadraticCurveTo(110, 430, 165, 425); p.closePath(); });
+      for (const x of [170, 220, 320, 370]) t.part(p => { p.moveTo(x - 24, 410); p.lineTo(x - 24, 530); p.lineTo(x + 24, 530); p.lineTo(x + 24, 410); p.closePath(); });
+      t.part(p => { p.moveTo(320, 330); p.quadraticCurveTo(430, 260, 455, 115); p.lineTo(505, 120); p.quadraticCurveTo(490, 290, 395, 385); p.closePath(); });
+      t.part(p => p.ellipse(270, 385, 165, 88, 0, 0, Math.PI * 2));
+      t.part(p => p.ellipse(500, 108, 55, 32, -.1, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(130, 420); p.quadraticCurveTo(270, 490, 420, 410); });
+      for (const [x, y, r] of [[210, 345, 18], [270, 325, 14], [330, 350, 16], [245, 390, 11]]) t.line(p => p.arc(x, y, r, 0, Math.PI * 2));
+      for (const k of [0, 1, 2]) t.line(p => { const y = 300 - k * 60, x = 380 + k * 30; p.moveTo(x, y + 15); p.quadraticCurveTo(x + 20, y, x + 48 - k * 6, y + 6); });
+      t.dot(515, 98, 9); t.line(p => { p.moveTo(530, 122); p.quadraticCurveTo(543, 128, 552, 116); });
+    }},
     {name: 'アンキロ', world: 'dino', mode: 'swim', draw(t) {
       for (const x of [175, 235, 365, 425]) t.part(p => { p.moveTo(x - 24, 360); p.lineTo(x - 24, 455); p.lineTo(x + 24, 455); p.lineTo(x + 24, 360); p.closePath(); });
       for (let k = 0; k < 9; k++) { // spikes standing on the curve of the back (100,380)-(300,130)-(500,380)

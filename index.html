@@ -68,10 +68,10 @@ button:hover { background: rgba(255,255,255,.16); }
 button:focus-visible, .drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 button.primary { background: var(--accent); color: #2b2000; border-color: transparent; font-weight: 700; }
 .list { display: grid; gap: 6px; max-height: 28vh; overflow-y: auto; }
-.item { display: flex; align-items: center; gap: 8px; padding: 4px; border-radius: 10px; background: rgba(255,255,255,.04); }
-.item img { width: 44px; height: 44px; object-fit: contain; flex: none; background: rgba(255,255,255,.06); border-radius: 8px; }
+.item { display: flex; align-items: center; gap: 5px; padding: 4px; border-radius: 10px; background: rgba(255,255,255,.04); }
+.item img { width: 40px; height: 40px; object-fit: contain; flex: none; background: rgba(255,255,255,.06); border-radius: 8px; }
 .item .name { flex: 1; min-width: 0; font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.item button { padding: 4px 9px; font-size: 12px; }
+.item button { padding: 4px 7px; font-size: 12px; flex: none; }
 .item .name.life { font-size: 12px; line-height: 1.4; color: var(--accent); white-space: normal; font-variant-numeric: tabular-nums; }
 .item button.del { color: var(--danger); }
 .count { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
@@ -82,23 +82,25 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 .show-btn:hover { opacity: 1; }
 @media (max-width: 480px) { .tray { padding: 12px; } .tray h1 { font-size: 19px; } }
 /* coloring book overlay */
-.paint { position: fixed; inset: 0; z-index: 20; background: #06243b; display: grid; grid-template-rows: auto auto 1fr auto auto; gap: 10px;
+.paint { position: fixed; inset: 0; z-index: 20; background: #06243b; display: grid; grid-template-rows: auto auto 1fr auto auto auto; gap: 10px;
   padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
 .paint[hidden] { display: none; }
 .paint-head { display: flex; align-items: center; gap: 8px; }
 .paint-head h2 { font-family: var(--font-display); font-weight: 500; font-size: 20px; margin: 0; flex: 1; }
+.paint-go { display: flex; justify-content: center; }
+.paint-go button { font-size: 18px; padding: 10px 34px; }
 .tpl { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .tpl button { flex: none; padding: 4px; border-radius: 12px; background: #fff; border: 3px solid transparent; }
 .tpl button.on { border-color: var(--accent); }
 .tpl canvas { display: block; width: 64px; height: 64px; }
-.paint-stage { display: grid; place-items: center; min-height: 0; }
+.paint-stage { display: grid; place-items: end center; min-height: 0; }
 .paint-board { position: relative; width: min(92vw, 100%, 62vh); aspect-ratio: 1; border-radius: 16px; background: #fff; touch-action: none; overflow: hidden; }
 .paint-board canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .tools, .colors { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
 .tools button.on { background: var(--accent); color: #2b2000; border-color: transparent; font-weight: 700; }
 .colors button { width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 3px solid rgba(255,255,255,.35); }
 .colors button.on { border-color: #fff; box-shadow: 0 0 0 3px var(--accent); }
-.drop-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.drop-row { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
 .drop-row .drop { min-width: 0; }
 .side { display: grid; gap: 8px; }
 .side .paint-open { padding: 6px 12px; font-size: 14px; }
@@ -126,15 +128,15 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
   <h1>すいすいスケッチ</h1>
   <p id="desc">スキャンした絵や写真を入れると、白い紙の部分を消して水槽で泳ぎます。お魚をタッチするとジャンプして逃げます。水をタッチすると近くのお魚が見に来ます。30秒ごとにお客さん（マンボウ、カニ、マンタなど）が通りかかります。入れた絵は3分たつとサメが食べに来ます。</p>
   <div class="drop-row">
+  <div class="side">
+    <button class="paint-open" id="paintOpen">🎨 ぬりえ</button>
+    <button class="paint-open" id="zukanOpen">📖 ずかん</button>
+  </div>
   <label class="drop" id="drop" tabindex="0">
     <strong>絵を入れる</strong>
     <span>ここをタップ、または画像をドラッグ（複数OK）</span>
     <input type="file" id="file" accept="image/*" multiple class="picker" aria-label="絵を入れる">
   </label>
-  <div class="side">
-    <button class="paint-open" id="paintOpen">🎨 ぬりえ</button>
-    <button class="paint-open" id="zukanOpen">📖 ずかん</button>
-  </div>
   </div>  <div class="row">
     <label for="tol">紙の白を消す強さ</label>
     <input type="range" id="tol" min="10" max="120" value="55">
@@ -163,14 +165,13 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
   </div>
   <div class="tpl" id="pTpl"></div>
   <div class="paint-stage"><div class="paint-board" id="pBoard"><canvas id="pColor" width="600" height="600"></canvas><canvas id="pLines" width="600" height="600"></canvas></div></div>
+  <div class="paint-go"><button id="pGo" class="primary">🎉 かんせい！</button></div>
   <div class="colors" id="pColors"></div>
   <div class="tools">
     <button id="tFill" class="on">🪣 ぬる</button>
     <button id="tPen">✏️ ペン</button>
     <button id="tErase">🧽 けす</button>
     <button id="pUndo">↩ もどす</button>
-    <button id="pSave">💾 保存</button>
-    <button id="pGo" class="primary">🐟 泳がせる！</button>
   </div>
 </section>
 
@@ -1686,7 +1687,6 @@ const PAINT = (() => {
   for (const k in tb) document.getElementById(tb[k]).onclick = () => setTool(k);
   document.getElementById('pUndo').onclick = () => { const u = undo.pop(); if (u) xC.putImageData(u, 0, 0); };
   document.getElementById('pClose').onclick = () => { root.hidden = true; };
-  document.getElementById('pSave').onclick = () => saveImage(result());
   document.getElementById('pGo').onclick = () => {
     const t = TPL[cur];
     addCreature(result(), 'ぬりえ：' + t.name, {scale: .26, user: true, mode: t.mode, at: {x: W / 2, y: H * .45}});

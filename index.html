@@ -539,6 +539,9 @@ const SND = (() => {
         case 'fairy':    [96, 100, 103, 108, 103, 108, 112].forEach((m, i) => tone('sine', hz(m), i * .05, .4, .07)); break;
         case 'swans':    tone('sine', [800, 600], 0, .15, .12); tone('sine', [800, 600], .2, .15, .12); [84, 88, 91, 96].forEach((m, i) => tone('sine', hz(m), .45 + i * .1, .6, .08)); break;
         case 'dragon':   tone('sawtooth', [200, 320], 0, .45, .06, sfxBus, .05); tone('sine', [300, 520], 0, .45, .2); [91, 96, 100].forEach((m, i) => tone('sine', hz(m), .5 + i * .08, .5, .08)); break;
+        case 'starprince': [96, 100, 103, 108, 112, 108, 103, 108].forEach((m, i) => tone('sine', hz(m), i * .09, .6, .07)); break;
+        case 'wakagimi': [74, 76, 79, 81, 84, 81, 79].forEach((m, i) => { tone('triangle', hz(m), i * .16, .5, .14); tone('sine', hz(m + 12), i * .16, .2, .04); }); break;
+        case 'hakuba':   for (let i = 0; i < 8; i++) noise(i * .12, .05, .5, 2600, 1900, 3); tone('sine', [900, 1500], .1, .3, .1); tone('sine', [1500, 800], .4, .5, .1); [72, 76, 79, 84].forEach((m, i) => tone('triangle', hz(m), 1 + i * .15, .4, .1)); break;
         case 'prince2':
         case 'prince':   [72, 76, 79, 77, 74, 72].forEach((m, i) => tone('triangle', hz(m), i * .26, .4, .13)); break;
         case 'aladdin':  [72, 73, 76, 77, 79, 80, 83, 84, 88].forEach((m, i) => tone('triangle', hz(m), i * .07, .5, .1)); noise(.6, .8, .25, 2000, 5000, .7); break;
@@ -757,7 +760,7 @@ function spawnVisitor(kind) {
 function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
-  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'aladdin', 'mice', 'majo', 'fairy', 'swans', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio']).filter(k => k !== lastKind);
+  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'starprince', 'hakuba', 'wakagimi', 'aladdin', 'mice', 'majo', 'fairy', 'swans', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio']).filter(k => k !== lastKind);
   lastKind = FORCE && clock < 5 ? FORCE : kinds[Math.floor(Math.random() * kinds.length)];
   spawnVisitor(lastKind); SND.arrive();
 }
@@ -3447,8 +3450,13 @@ function drawPrincess(x, s, step = 0) { // feet at (0, 0)
 }
 function drawPrince(x, s, step = 0, bow = 0, alt = false) { // feet at (0, 0); bow 0..1 = a polite bow
   const lw = Math.max(2, s * .018), sw = Math.sin(step) * s * .05;
-  const C = alt ? {leg: '#2a3a6a', legS: '#141e3a', boot: '#222', cape: '#5ab0ff', capeS: '#2a6aa8', coat: '#fbfbff', coatS: '#9aa0c0', hair: '#ffd45a', hairS: '#c99a1e'}
-                : {leg: '#ffffff', legS: '#7a8aa8', boot: '#5a3a2a', cape: '#e04a5a', capeS: '#8a1f2a', coat: '#4a7be0', coatS: '#22427f', hair: '#7a4a2a', hairS: '#4a2a14'};
+  // alt: false = blue coat, true = white coat with a hat and a rose, 'star' = the star prince, 'red' = the prince on the white horse
+  const C = {
+    false: {leg: '#ffffff', legS: '#7a8aa8', boot: '#5a3a2a', cape: '#e04a5a', capeS: '#8a1f2a', coat: '#4a7be0', coatS: '#22427f', hair: '#7a4a2a', hairS: '#4a2a14'},
+    true: {leg: '#2a3a6a', legS: '#141e3a', boot: '#222', cape: '#5ab0ff', capeS: '#2a6aa8', coat: '#fbfbff', coatS: '#9aa0c0', hair: '#ffd45a', hairS: '#c99a1e'},
+    star: {leg: '#f4f0ff', legS: '#8a80c0', boot: '#3a3f9a', cape: '#2a2f78', capeS: '#14183f', coat: '#4a4fc0', coatS: '#262a78', hair: '#f2f2ff', hairS: '#a8a8c8'},
+    red: {leg: '#ffffff', legS: '#7a8aa8', boot: '#3a2416', cape: '#3a5ad0', capeS: '#1a2a7a', coat: '#d23c5a', coatS: '#7a1a30', hair: '#5a3a24', hairS: '#2e1d10'},
+  }[alt];
   x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
   for (const k of [-1, 1]) {
     const o = k * sw, lx = k * s * .045;
@@ -3460,27 +3468,56 @@ function drawPrince(x, s, step = 0, bow = 0, alt = false) { // feet at (0, 0); b
   x.save(); x.translate(0, -s * .45); x.rotate(bow * .55); x.translate(0, s * .45);
   x.fillStyle = C.cape; x.strokeStyle = C.capeS; // cape
   x.beginPath(); x.moveTo(-s * .06, -s * .7); x.quadraticCurveTo(-s * .2, -s * .45, -s * .17 - sw * .5, -s * .2); x.lineTo(-s * .02, -s * .3); x.closePath(); x.fill(); x.stroke();
+  if (alt === 'star') { x.fillStyle = '#ffe066'; for (const [a, b] of [[-.1, -.55], [-.13, -.38], [-.07, -.42]]) { x.beginPath(); x.arc(a * s, b * s, s * .012, 0, 7); x.fill(); } }
   x.fillStyle = C.coat; x.strokeStyle = C.coatS; // jacket
   x.beginPath(); x.moveTo(-s * .1, -s * .71); x.lineTo(s * .1, -s * .71); x.lineTo(s * .115, -s * .4); x.lineTo(-s * .115, -s * .4); x.closePath(); x.fill(); x.stroke();
   x.fillStyle = '#ffd84a'; x.fillRect(-s * .115, -s * .47, s * .23, s * .03);
-  if (alt) { x.strokeStyle = '#5ab0ff'; x.lineWidth = s * .035; x.beginPath(); x.moveTo(-s * .09, -s * .7); x.lineTo(s * .1, -s * .48); x.stroke(); x.lineWidth = lw; } // sash
+  if (alt === 'star') { x.fillStyle = '#ffe066'; for (const [a, b] of [[-.05, -.62], [.04, -.55], [-.03, -.5]]) { starPath(x, a * s, b * s, s * .022); x.fill(); } }
+  if (alt === true) { x.strokeStyle = '#5ab0ff'; x.lineWidth = s * .035; x.beginPath(); x.moveTo(-s * .09, -s * .7); x.lineTo(s * .1, -s * .48); x.stroke(); x.lineWidth = lw; } // sash
   for (const y of [-.64, -.56]) { x.beginPath(); x.arc(0, y * s, s * .013, 0, 7); x.fill(); }
   x.strokeStyle = '#b8860b'; for (const k of [-1, 1]) { x.beginPath(); x.ellipse(k * s * .1, -s * .7, s * .045, s * .02, 0, 0, 7); x.fill(); x.stroke(); }
   const hx = s * .12 - bow * s * .1, hy = -s * .47 - bow * s * .1; // hand (on the chest when bowing)
   x.fillStyle = C.coat; x.strokeStyle = C.coatS; x.lineWidth = s * .05; x.beginPath(); x.moveTo(s * .07, -s * .66); x.lineTo(hx, hy); x.stroke();
   x.lineWidth = lw; x.fillStyle = '#ffe2cf'; x.strokeStyle = '#d29a80'; x.beginPath(); x.arc(hx, hy, s * .027, 0, 7); x.fill(); x.stroke();
-  if (alt) { x.strokeStyle = '#3aa040'; x.beginPath(); x.moveTo(hx, hy); x.lineTo(hx + s * .05, hy - s * .08); x.stroke(); x.fillStyle = '#e8345a'; x.strokeStyle = '#8a1030'; x.beginPath(); x.arc(hx + s * .055, hy - s * .1, s * .03, 0, 7); x.fill(); x.stroke(); x.fillStyle = '#ffe2cf'; x.strokeStyle = '#d29a80'; } // a red rose
+  if (alt === true) { x.strokeStyle = '#3aa040'; x.beginPath(); x.moveTo(hx, hy); x.lineTo(hx + s * .05, hy - s * .08); x.stroke(); x.fillStyle = '#e8345a'; x.strokeStyle = '#8a1030'; x.beginPath(); x.arc(hx + s * .055, hy - s * .1, s * .03, 0, 7); x.fill(); x.stroke(); x.fillStyle = '#ffe2cf'; x.strokeStyle = '#d29a80'; } // a red rose
   x.fillRect(-s * .02, -s * .76, s * .04, s * .06);
   x.beginPath(); x.arc(s * .01, -s * .83, s * .11, 0, 7); x.fill(); x.stroke();
   x.fillStyle = C.hair; x.strokeStyle = C.hairS; // hair
   x.beginPath(); x.moveTo(-s * .1, -s * .79); x.quadraticCurveTo(-s * .11, -s * .95, s * .02, -s * .95); x.quadraticCurveTo(s * .13, -s * .94, s * .12, -s * .84);
   x.quadraticCurveTo(s * .06, -s * .9, -s * .02, -s * .87); x.quadraticCurveTo(-s * .06, -s * .86, -s * .1, -s * .79); x.closePath(); x.fill(); x.stroke();
-  if (alt) { // a feathered hat instead of a crown
+  if (alt === 'star') { // a star for a crown
+    x.fillStyle = '#ffe066'; x.strokeStyle = '#d4a017'; x.lineWidth = lw; x.shadowColor = '#fff3a0'; x.shadowBlur = s * .06; starPath(x, s * .01, -s * .98, s * .07); x.fill(); x.stroke(); x.shadowBlur = 0;
+  } else if (alt === true) { // a feathered hat instead of a crown
     x.fillStyle = '#3a4a8a'; x.strokeStyle = '#1a2450'; x.beginPath(); x.ellipse(s * .01, -s * .93, s * .13, s * .035, -.1, 0, 7); x.fill(); x.stroke();
     x.beginPath(); x.ellipse(s * .01, -s * .97, s * .08, s * .05, -.1, Math.PI, 0); x.fill(); x.stroke();
     x.strokeStyle = '#ffffff'; x.lineWidth = s * .03; x.beginPath(); x.moveTo(-s * .03, -s * .98); x.quadraticCurveTo(-s * .12, -s * 1.08, -s * .2, -s * 1.02); x.stroke(); x.lineWidth = lw;
     x.fillStyle = '#ffd84a'; x.beginPath(); x.arc(-s * .03, -s * .97, s * .02, 0, 7); x.fill();
   } else { x.save(); x.translate(s * .01, -s * .925); drawMiniCrown(x, s * .1); x.restore(); }
+  x.fillStyle = '#3a2a2a'; for (const ex of [-.015, .065]) { x.beginPath(); x.ellipse(ex * s + s * .01, -s * .82, s * .012, s * .017, 0, 0, 7); x.fill(); }
+  x.fillStyle = 'rgba(255,130,160,.45)'; for (const ex of [-.04, .095]) { x.beginPath(); x.arc(ex * s + s * .01, -s * .785, s * .016, 0, 7); x.fill(); }
+  x.strokeStyle = '#8a3a3a'; x.lineWidth = Math.max(1.5, s * .01); x.beginPath(); x.arc(s * .035, -s * .79, s * .022, .3, Math.PI - .3); x.stroke();
+  x.restore();
+}
+function drawWaka(x, s, step = 0, bow = 0) { // わかぎみ: a young lord in hakama and an eboshi hat; feet at (0, 0)
+  const lw = Math.max(2, s * .018), sw = Math.sin(step) * s * .03;
+  x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
+  x.fillStyle = '#f7f0e0'; x.strokeStyle = '#8a7a5a'; for (const k of [-1, 1]) { x.beginPath(); x.ellipse(k * s * .06 + k * sw, -s * .015, s * .05, s * .02, 0, 0, 7); x.fill(); x.stroke(); }
+  x.fillStyle = '#3a4a8a'; x.strokeStyle = '#1a2450'; // hakama
+  x.beginPath(); x.moveTo(-s * .1, -s * .46); x.lineTo(s * .1, -s * .46); x.lineTo(s * .16 + sw, -s * .03); x.lineTo(-s * .16 - sw, -s * .03); x.closePath(); x.fill(); x.stroke();
+  x.strokeStyle = 'rgba(160,180,230,.7)'; x.beginPath(); for (const k of [-.07, 0, .07]) { x.moveTo(k * s, -s * .44); x.lineTo(k * s * 1.5, -s * .05); } x.stroke();
+  x.save(); x.translate(0, -s * .45); x.rotate(bow * .5); x.translate(0, s * .45);
+  x.fillStyle = '#9fd4ff'; x.strokeStyle = '#3a7ab0'; x.lineWidth = lw; // kariginu with big round sleeves
+  for (const k of [-1, 1]) { x.beginPath(); x.ellipse(k * s * .14, -s * .52, s * .08, s * .13, k * .2, 0, 7); x.fill(); x.stroke(); }
+  x.beginPath(); x.moveTo(-s * .11, -s * .72); x.lineTo(s * .11, -s * .72); x.lineTo(s * .12, -s * .43); x.lineTo(-s * .12, -s * .43); x.closePath(); x.fill(); x.stroke();
+  x.strokeStyle = '#3a7ab0'; x.beginPath(); x.moveTo(-s * .05, -s * .72); x.lineTo(0, -s * .62); x.lineTo(s * .05, -s * .72); x.stroke();
+  x.fillStyle = '#ffffff'; for (const [a, b] of [[-.06, -.58], [.06, -.52], [-.15, -.48], [.15, -.58]]) { x.beginPath(); x.arc(a * s, b * s, s * .015, 0, 7); x.fill(); }
+  x.fillStyle = '#f2e6c8'; x.strokeStyle = '#a08a5a'; x.save(); x.translate(s * .07, -s * .55); x.rotate(-.5); x.fillRect(-s * .012, -s * .09, s * .024, s * .16); x.strokeRect(-s * .012, -s * .09, s * .024, s * .16); x.restore(); // shaku
+  x.fillStyle = '#ffe2cf'; x.strokeStyle = '#d29a80'; x.fillRect(-s * .02, -s * .77, s * .04, s * .06);
+  x.beginPath(); x.arc(s * .01, -s * .83, s * .11, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#1a1a22'; x.beginPath(); x.moveTo(-s * .1, -s * .8); x.quadraticCurveTo(-s * .1, -s * .94, s * .01, -s * .94); x.quadraticCurveTo(s * .12, -s * .94, s * .12, -s * .82); x.quadraticCurveTo(s * .05, -s * .88, -s * .1, -s * .8); x.fill();
+  x.fillStyle = '#222'; x.strokeStyle = '#000'; // eboshi
+  x.beginPath(); x.moveTo(-s * .07, -s * .9); x.quadraticCurveTo(-s * .08, -s * 1.12, s * .02, -s * 1.16); x.quadraticCurveTo(s * .08, -s * 1.1, s * .08, -s * .9); x.closePath(); x.fill(); x.stroke();
+  x.strokeStyle = '#555'; x.beginPath(); x.moveTo(-s * .06, -s * .98); x.lineTo(s * .07, -s * 1.0); x.stroke();
   x.fillStyle = '#3a2a2a'; for (const ex of [-.015, .065]) { x.beginPath(); x.ellipse(ex * s + s * .01, -s * .82, s * .012, s * .017, 0, 0, 7); x.fill(); }
   x.fillStyle = 'rgba(255,130,160,.45)'; for (const ex of [-.04, .095]) { x.beginPath(); x.arc(ex * s + s * .01, -s * .785, s * .016, 0, 7); x.fill(); }
   x.strokeStyle = '#8a3a3a'; x.lineWidth = Math.max(1.5, s * .01); x.beginPath(); x.arc(s * .035, -s * .79, s * .022, .3, Math.PI - .3); x.stroke();
@@ -3722,7 +3759,8 @@ function spawnPrincess(kind) {
   const from = d => side > 0 ? -d : W + d;
   if (kind === 'carriage') add({s: m * .3, x: from(m * .55), y: G});
   else if (kind === 'unicorn') add({s: m * .3, x: from(m * .3), y: G});
-  else if (kind === 'prince' || kind === 'prince2') add({s: m * .18, x: from(m * .1), y: G});
+  else if (kind === 'hakuba') add({s: m * .18, x: from(m * .3), y: G});
+  else if (kind === 'prince' || kind === 'prince2' || kind === 'starprince' || kind === 'wakagimi') add({s: m * .18, x: from(m * .1), y: G});
   else if (kind === 'aladdin') add({s: m * .3, x: from(m * .4), y: H * (.22 + Math.random() * .12)});
   else if (kind === 'frog') add({s: m * .13, x: from(m * .1), y: G});
   else if (kind === 'mice') add({s: m * .14, x: from(m * .12), y: G});
@@ -3756,7 +3794,7 @@ function drawPrincessVisitor(v, dt, P) {
       }
       ctx.translate(v.x, G); ctx.scale(v.dir, 1); drawUnicorn(ctx, s, v.step, true, ease);
       return !gone(s * .7);
-    case 'prince': case 'prince2': {
+    case 'prince': case 'prince2': case 'starprince': case 'wakagimi': {
       let bow = 0, lift = 0;
       const D = v.dance;
       if (D) { // walk over to the princess, bow, then waltz around together
@@ -3786,8 +3824,53 @@ function drawPrincessVisitor(v, dt, P) {
         }
       } else if (!act) { v.x += v.dir * 50 * dt; v.step += dt * 6; }
       else bow = ease;
-      ctx.translate(v.x, G - lift); ctx.scale(v.dir, 1); drawPrince(ctx, s, v.step, bow, v.kind === 'prince2');
+      if (v.kind === 'starprince') { // a little star keeps him company
+        const sx = v.x + v.dir * s * .28, sy = G - s * 1.15 + Math.sin(v.t * 3) * s * .06;
+        ctx.save(); ctx.fillStyle = '#ffe066'; ctx.shadowColor = '#fff3a0'; ctx.shadowBlur = s * .12; starPath(ctx, sx, sy, s * .06); ctx.fill(); ctx.restore();
+        if (Math.random() < dt * 4) fx.push({k: 'spark', x: v.x + (Math.random() - .5) * s * .5, y: G - Math.random() * s, vx: 0, vy: -20, a: .8, s: s * .05});
+      }
+      ctx.translate(v.x, G - lift); ctx.scale(v.dir, 1);
+      if (v.kind === 'wakagimi') drawWaka(ctx, s, v.step, bow); else drawPrince(ctx, s, v.step, bow, v.kind === 'prince2' ? true : v.kind === 'starprince' ? 'star' : false);
       return !gone(s * .3);
+    }
+    case 'hakuba': { // the prince on a white horse: tap -> he gallops to the nearest princess, she rides along, then hops off
+      const hs = s * 1.3, D = v.dance;
+      let gallop = false;
+      if (D) {
+        const c = D.c; D.t += dt;
+        const seatX = () => v.x - v.dir * hs * .2, seatY = () => G - hs * .62 - c.h * .3;
+        const alive = creatures.includes(c) && !c.ascend && !c.hidden;
+        if (!alive || D.t > 14) { if (c.dance && c.dance.v === v) c.dance = null; v.dance = null; }
+        else if (D.ph === 'go') {
+          const d = c.x - v.x; gallop = true;
+          if (Math.abs(d) < 12 || D.t > 6) { D.ph = 'up'; D.t0 = D.t; D.fx = c.x; D.fy = c.y; pops.push({x: c.x, y: G - hs * 1.3, a: 1, text: 'のせて〜♪'}); }
+          else { v.dir = Math.sign(d); v.x += v.dir * Math.min(Math.abs(d), 230 * dt); v.step += dt * 14; }
+        } else if (D.ph === 'up') { // she jumps up behind him
+          const k = Math.min(1, (D.t - D.t0) / .6);
+          c.x = D.fx + (seatX() - D.fx) * k; c.y = D.fy + (seatY() - D.fy) * k - Math.sin(k * Math.PI) * hs * .4;
+          if (k >= 1) { D.ph = 'ride'; D.t0 = D.t; }
+        } else if (D.ph === 'ride') { // gallop around together
+          gallop = true; v.x += v.dir * 200 * dt; v.step += dt * 14;
+          if (v.x > W - hs * .6 && v.dir > 0) v.dir = -1; if (v.x < hs * .6 && v.dir < 0) v.dir = 1;
+          c.x = seatX(); c.y = seatY() - Math.abs(Math.sin(v.step * .5)) * hs * .04; c.dir = v.dir * (c.flip ? -1 : 1);
+          if (Math.random() < dt * 4) fx.push({k: 'heart', x: v.x + (Math.random() - .5) * hs * .5, y: G - hs * 1.2, vx: (Math.random() - .5) * 40, vy: -40, a: 1.1, s: s * .08});
+          if (Math.random() < .5) fx.push({k: 'spark', x: v.x - v.dir * hs * .4, y: G - Math.random() * hs * .2, vx: -v.dir * 60, vy: -20, a: .8, s: s * .05});
+          if (D.t - D.t0 > 4.5) { D.ph = 'down'; D.t0 = D.t; D.fx = c.x; D.fy = c.y; D.tx = Math.min(W - c.w, Math.max(c.w, c.x - v.dir * hs * .7)); }
+        } else if (D.ph === 'down') { // and hops back down
+          const k = Math.min(1, (D.t - D.t0) / .6);
+          c.x = D.fx + (D.tx - D.fx) * k; c.y = D.fy + ((G - c.h / 2 + 4) - D.fy) * k - Math.sin(k * Math.PI) * hs * .3;
+          if (k >= 1) { c.dance = null; v.dance = null; c.jump = 1; pops.push({x: c.x, y: c.y - c.h * .7, a: 1, text: 'たのしかった♪'}); }
+        }
+      } else if (!act) { v.x += v.dir * 70 * dt; v.step += dt * 8; }
+      ctx.translate(v.x, G); ctx.scale(v.dir, 1);
+      drawUnicorn(ctx, hs, v.step * (gallop ? 1.2 : 1), false, 0);
+      ctx.save(); ctx.beginPath(); ctx.rect(-hs * 2, -hs * 4, hs * 4, hs * 4 - hs * .64); ctx.clip(); // the prince, from the saddle up
+      ctx.translate(hs * .05, -hs * .69 + s * .45); drawPrince(ctx, s, 0, act ? ease * .3 : 0, 'red'); ctx.restore();
+      ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#7a8aa8'; ctx.lineWidth = Math.max(2, s * .018); // a leg and boot down the horse's side
+      ctx.beginPath(); ctx.moveTo(hs * .02, -hs * .62); ctx.lineTo(hs * .1, -hs * .62); ctx.lineTo(hs * .09, -hs * .42); ctx.lineTo(hs * .03, -hs * .42); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#3a2416'; ctx.beginPath(); ctx.moveTo(hs * .02, -hs * .44); ctx.lineTo(hs * .1, -hs * .44); ctx.lineTo(hs * .13, -hs * .38); ctx.lineTo(hs * .02, -hs * .38); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e04a5a'; ctx.beginPath(); ctx.ellipse(-hs * .02, -hs * .66, hs * .14, hs * .04, 0, 0, 7); ctx.fill(); // saddle cloth
+      return D ? true : !gone(hs * .7);
     }
     case 'aladdin': { // on a flying carpet; tap -> a loop-the-loop and the lamp puffs out stars
       v.x += v.dir * (act ? 40 : 85) * dt; v.y += Math.sin(v.t * 1.3) * 16 * dt;
@@ -3865,7 +3948,7 @@ function tapPrincess(px, py) {
     switch (v.kind) {
       case 'carriage': { const cx = v.x - v.dir * s * .3; if (inBox(cx, G - s * .5, s * 1.7, s) && start(v, 1.6, 'パカラッ♪', cx, G - s * 1.3)) return true; break; }
       case 'unicorn': if (inBox(v.x, G - s * .55, s * .9, s * 1.1) && start(v, 2.6, 'にじが でた〜！', v.x, G - s * 1.6)) return true; break;
-      case 'prince': case 'prince2': if (!v.dance && inBox(v.x, G - s * .5, s * .5, s, 30) && start(v, 2.6, '', 0, 0)) {
+      case 'prince': case 'prince2': case 'starprince': case 'wakagimi': if (!v.dance && inBox(v.x, G - s * .5, s * .5, s, 30) && start(v, 2.6, '', 0, 0)) {
         // the nearest princess (or, if there is none, the nearest drawing) is asked to dance
         const free = creatures.filter(c => !c.ascend && !c.hidden && !c.abduct && !c.drop && !c.launch && !c.dance);
         const prin = free.filter(c => c.princess || /ひめ|プリンセス|じょおう/.test(c.name || ''));
@@ -3874,6 +3957,14 @@ function tapPrincess(px, py) {
         if (best) { v.dance = {c: best, t: 0, side: Math.sign(best.x - v.x) || 1, dir0: v.dir}; best.dance = {v}; best.target = null; v.act = 0; pops.push({x: v.x, y: G - s * 1.5, a: 1, text: 'おひめさま〜♪'}); }
         else pops.push({x: v.x, y: G - s * 1.4, a: 1, text: 'だれか おどろう♪'});
         for (let k = 0; k < 6; k++) fx.push({k: 'note', x: v.x + (Math.random() - .5) * s, y: G - s * (.6 + Math.random() * .5), vx: (Math.random() - .5) * 80, vy: -50, a: 1.3, s: s * .15, ph: Math.random() * 6, c: Math.floor(Math.random() * 5), two: Math.random() < .4});
+        return true;
+      } break;
+      case 'hakuba': if (!v.dance && inBox(v.x, G - s * .9, s * 1.4, s * 1.6, 25) && start(v, 1.2, 'パカラッ パカラッ♪', v.x, G - s * 2)) {
+        const free = creatures.filter(c => !c.ascend && !c.hidden && !c.abduct && !c.drop && !c.launch && !c.dance);
+        const prin = free.filter(c => c.princess || /ひめ|プリンセス|じょおう/.test(c.name || ''));
+        const pool = prin.length ? prin : free;
+        let best = null, bd = 1e9; for (const c of pool) { const d = Math.abs(c.x - v.x); if (d < bd) { bd = d; best = c; } }
+        if (best) { v.dance = {c: best, t: 0, ph: 'go'}; best.dance = {v}; best.target = null; }
         return true;
       } break;
       case 'aladdin': if (inBox(v.hx ?? v.x, (v.hy ?? v.y) - s * .2, s * 1.1, s * .7) && start(v, 2.6, 'まほうの じゅうたん〜！', v.hx ?? v.x, (v.hy ?? v.y) - s * .8)) { fx.push({k: 'puff', x: v.x + v.dir * s * .35, y: v.y - s * .4, vx: 0, vy: -20, a: 1, s: s * .3}); for (const c of creatures) burst('spark', c.x, c.y - c.h * .4, 6, c.w * .06, 120); return true; } break;

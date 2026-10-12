@@ -3699,7 +3699,7 @@ function spawnPrincess(kind) {
   const from = d => side > 0 ? -d : W + d;
   if (kind === 'carriage') add({s: m * .3, x: from(m * .55), y: G});
   else if (kind === 'unicorn') add({s: m * .3, x: from(m * .3), y: G});
-  else if (kind === 'prince' || kind === 'prince2') add({s: m * .125, x: from(m * .1), y: G});
+  else if (kind === 'prince' || kind === 'prince2') add({s: m * .18, x: from(m * .1), y: G});
   else if (kind === 'aladdin') add({s: m * .3, x: from(m * .4), y: H * (.22 + Math.random() * .12)});
   else if (kind === 'frog') add({s: m * .13, x: from(m * .1), y: G});
   else if (kind === 'mice') add({s: m * .14, x: from(m * .12), y: G});
@@ -3887,7 +3887,7 @@ function updateMidnight(dt) {
 
 /* ---------- princess samples ---------- */
 const princessSamples = [
-  ['見本：おひめさま', sprite(200, 270, x => { x.translate(100, 264); drawPrincess(x, 255); }), {mode: 'swim', si: 2, princess: true}],
+  ['見本：おひめさま', sprite(200, 270, x => { x.translate(100, 264); drawPrincess(x, 255); }), {mode: 'swim', princess: true}],
   ['見本：ユニコーン', sprite(270, 280, x => { x.translate(125, 272); drawUnicorn(x, 225, .6); }), {mode: 'hop', small: true}],
   ['見本：ようせい', sprite(220, 200, x => { x.translate(115, 105); drawFairy(x, 230, .3); }), {mode: 'float', small: true}],
 ];

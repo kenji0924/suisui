@@ -1765,6 +1765,52 @@ const PAINT = (() => {
       t.line(p => { p.moveTo(255, 275); p.quadraticCurveTo(300, 305, 345, 275); });
       t.line(p => { p.moveTo(270, 282); p.lineTo(276, 300); p.lineTo(284, 287); p.moveTo(330, 282); p.lineTo(324, 300); p.lineTo(316, 287); });
     }},
+    {name: 'いったんもめん', world: 'yokai', mode: 'float', draw(t) {
+      t.part(p => { p.moveTo(570, 160); p.bezierCurveTo(470, 90, 370, 250, 250, 205); p.quadraticCurveTo(140, 165, 30, 300); p.lineTo(80, 380); p.quadraticCurveTo(160, 270, 255, 305); p.bezierCurveTo(390, 355, 480, 200, 570, 275); p.closePath(); });
+      t.line(p => { p.moveTo(400, 205); p.quadraticCurveTo(395, 255, 405, 300); });
+      t.line(p => { p.moveTo(250, 205); p.quadraticCurveTo(240, 255, 255, 305); });
+      t.line(p => { p.moveTo(125, 235); p.quadraticCurveTo(135, 285, 160, 315); });
+      t.dot(530, 195, 10); t.dot(540, 235, 10);
+    }},
+    {name: 'ばけぎつね', world: 'yokai', mode: 'swim', draw(t) {
+      t.part(p => { p.moveTo(200, 430); p.quadraticCurveTo(40, 430, 60, 250); p.quadraticCurveTo(85, 175, 135, 220); p.quadraticCurveTo(110, 330, 215, 370); p.closePath(); });
+      for (const x of [255, 335]) t.part(p => { p.moveTo(x - 22, 440); p.lineTo(x - 22, 520); p.lineTo(x + 22, 520); p.lineTo(x + 22, 440); p.closePath(); });
+      t.part(p => p.ellipse(285, 390, 115, 105, 0, 0, Math.PI * 2));
+      for (const ex of [-1, 1]) t.part(p => { p.moveTo(385 + ex * 30, 175); p.lineTo(385 + ex * 55, 85); p.lineTo(385 + ex * 75, 190); p.closePath(); });
+      t.part(p => p.arc(385, 235, 85, 0, Math.PI * 2));
+      t.part(p => p.ellipse(465, 265, 55, 35, .15, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(360, 155); p.quadraticCurveTo(310, 90, 370, 50); p.quadraticCurveTo(420, 100, 360, 155); p.closePath(); });
+      t.line(p => { p.moveTo(362, 150); p.quadraticCurveTo(360, 100, 370, 58); });
+      t.line(p => { p.moveTo(68, 300); p.quadraticCurveTo(100, 290, 125, 260); });
+      t.line(p => p.ellipse(305, 410, 60, 70, 0, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(345, 225); p.quadraticCurveTo(360, 212, 375, 225); }); t.line(p => { p.moveTo(405, 225); p.quadraticCurveTo(420, 212, 435, 225); });
+      t.dot(515, 258, 9);
+    }},
+    {name: 'ばけだぬき', world: 'yokai', mode: 'hop', draw(t) {
+      t.part(p => { p.moveTo(420, 430); p.quadraticCurveTo(540, 440, 530, 330); p.quadraticCurveTo(500, 400, 410, 395); p.closePath(); });
+      for (const x of [240, 360]) t.part(p => p.ellipse(x, 520, 45, 25, 0, 0, Math.PI * 2));
+      t.part(p => p.ellipse(300, 400, 140, 130, 0, 0, Math.PI * 2));
+      for (const x of [215, 385]) t.part(p => p.arc(x, 130, 32, 0, Math.PI * 2));
+      t.part(p => p.ellipse(300, 210, 115, 95, 0, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(300, 120); p.quadraticCurveTo(250, 60, 305, 20); p.quadraticCurveTo(355, 65, 300, 120); p.closePath(); });
+      t.line(p => { p.moveTo(301, 116); p.quadraticCurveTo(298, 70, 305, 28); });
+      t.line(p => p.ellipse(300, 415, 85, 85, 0, 0, Math.PI * 2));
+      for (const k of [-1, 1]) t.line(p => p.ellipse(300 + k * 45, 205, 38, 28, k * .3, 0, Math.PI * 2));
+      t.dot(255, 205, 11); t.dot(345, 205, 11);
+      t.line(p => p.ellipse(300, 250, 30, 20, 0, 0, Math.PI * 2)); t.dot(300, 243, 8);
+      t.line(p => { p.moveTo(470, 380); p.lineTo(505, 390); p.moveTo(480, 405); p.lineTo(515, 405); });
+    }},
+    {name: 'ひとつめこぞう', world: 'yokai', mode: 'hop', draw(t) {
+      for (const x of [255, 345]) t.part(p => { p.moveTo(x - 30, 515); p.lineTo(x - 30, 540); p.lineTo(x + 30, 540); p.lineTo(x + 30, 515); p.closePath(); });
+      for (const k of [-1, 1]) t.part(p => { p.moveTo(300 + k * 70, 300); p.lineTo(300 + k * 165, 400); p.lineTo(300 + k * 130, 440); p.lineTo(300 + k * 80, 390); p.closePath(); });
+      t.part(p => { p.moveTo(190, 520); p.lineTo(225, 290); p.lineTo(375, 290); p.lineTo(410, 520); p.closePath(); });
+      t.part(p => p.arc(300, 185, 120, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(212, 380); p.lineTo(388, 380); p.moveTo(208, 410); p.lineTo(392, 410); });
+      t.line(p => { p.moveTo(300, 290); p.lineTo(250, 380); p.moveTo(300, 290); p.lineTo(350, 380); });
+      t.line(p => p.arc(300, 175, 55, 0, Math.PI * 2)); t.dot(305, 178, 24);
+      for (const k of [-1, 1]) t.line(p => p.arc(300 + k * 80, 235, 14, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(280, 255); p.quadraticCurveTo(300, 272, 320, 255); });
+    }},
     {name: 'ブラキオ', world: 'dino', mode: 'swim', draw(t) {
       t.part(p => { p.moveTo(160, 345); p.quadraticCurveTo(70, 370, 10, 470); p.quadraticCurveTo(110, 430, 165, 425); p.closePath(); });
       for (const x of [170, 220, 320, 370]) t.part(p => { p.moveTo(x - 24, 410); p.lineTo(x - 24, 530); p.lineTo(x + 24, 530); p.lineTo(x + 24, 410); p.closePath(); });
@@ -2939,17 +2985,6 @@ const yokaiSamples = [
   ['見本：おばけ', ykSprite(220, 220, x => drawGhost(x, 200)), {mode: 'float'}],
   ['見本：からかさ', ykSprite(200, 290, x => { x.translate(0, 40); drawKarakasa(x, 190, .8); }), {mode: 'hop', small: true}],
   ['見本：きつね', ykSprite(260, 260, x => { x.translate(0, 40); drawFox(x, 230, 0, true); }), {mode: 'swim'}],
-  ['見本：いったんもめん', sprite(300, 120, x => {
-    x.fillStyle = '#fbfbf5'; x.strokeStyle = '#a8a89a'; x.lineWidth = 4; x.lineJoin = 'round';
-    x.beginPath(); x.moveTo(290, 40); x.bezierCurveTo(220, 10, 150, 80, 80, 55); x.quadraticCurveTo(40, 45, 8, 70); x.lineTo(14, 92); x.quadraticCurveTo(45, 70, 85, 82); x.bezierCurveTo(160, 108, 225, 40, 290, 72); x.closePath(); x.fill(); x.stroke();
-    x.fillStyle = '#222'; for (const y of [48, 64]) { x.beginPath(); x.ellipse(265, y, 3.5, 6, 0, 0, 7); x.fill(); }
-  }), {mode: 'float'}],
-  ['見本：ばけぎつね', ykSprite(260, 280, x => { x.translate(0, 50); drawFox(x, 230, .8, false);
-    x.fillStyle = '#5fae4a'; x.strokeStyle = '#2f6a2a'; x.lineWidth = 3; x.save(); x.translate(12, -205); x.rotate(.3); x.beginPath(); x.moveTo(0, 20); x.quadraticCurveTo(-32, -10, 0, -42); x.quadraticCurveTo(32, -10, 0, 20); x.fill(); x.stroke(); x.restore();
-    x.fillStyle = 'rgba(255,255,255,.75)'; for (const [a, b, r] of [[-70, -120, 16], [-90, -95, 12], [-55, -100, 10]]) { x.beginPath(); x.arc(a, b, r, 0, 7); x.fill(); }
-  }), {mode: 'swim'}],
-  ['見本：ばけだぬき', ykSprite(240, 260, x => { x.translate(0, 10); drawTanuki(x, 210); }), {mode: 'hop', small: true}],
-  ['見本：ひとつめこぞう', ykSprite(200, 230, x => { x.translate(0, 10); drawHitotsume(x, 200, 1); }), {mode: 'hop', small: true}],
 ];
 
 resize();

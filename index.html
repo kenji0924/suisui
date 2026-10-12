@@ -77,6 +77,28 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 }
 .show-btn:hover { opacity: 1; }
 @media (max-width: 480px) { .tray { padding: 12px; } .tray h1 { font-size: 19px; } }
+/* coloring book overlay */
+.paint { position: fixed; inset: 0; z-index: 20; background: #06243b; display: grid; grid-template-rows: auto auto 1fr auto auto; gap: 10px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+.paint[hidden] { display: none; }
+.paint-head { display: flex; align-items: center; gap: 8px; }
+.paint-head h2 { font-family: var(--font-display); font-weight: 500; font-size: 20px; margin: 0; flex: 1; }
+.tpl { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.tpl button { flex: none; padding: 4px; border-radius: 12px; background: #fff; border: 3px solid transparent; }
+.tpl button.on { border-color: var(--accent); }
+.tpl canvas { display: block; width: 64px; height: 64px; }
+.paint-stage { display: grid; place-items: center; min-height: 0; }
+.paint-board { position: relative; width: min(92vw, 100%, 62vh); aspect-ratio: 1; border-radius: 16px; background: #fff; touch-action: none; overflow: hidden; }
+.paint-board canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tools, .colors { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.tools button.on { background: var(--accent); color: #2b2000; border-color: transparent; font-weight: 700; }
+.colors button { width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 3px solid rgba(255,255,255,.35); }
+.colors button.on { border-color: #fff; box-shadow: 0 0 0 3px var(--accent); }
+.drop-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.drop-row .drop { min-width: 0; }
+.paint-open { font-family: var(--font-display); font-weight: 500; font-size: 15px; border-radius: 14px; padding: 10px 14px; border: 2px dashed var(--panel-line); color: var(--accent); background: transparent; }
+@media (max-width: 480px) { .colors button { width: 32px; height: 32px; } .tpl canvas { width: 46px; height: 46px; } .tpl { gap: 6px; } }
+
 </style>
 
 <div id="stage">
@@ -86,11 +108,14 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 <section class="tray" id="tray">
   <h1>すいすいスケッチ</h1>
   <p>スキャンした絵や写真を入れると、白い紙の部分を消して水槽で泳ぎます。お魚をタッチするとジャンプして逃げます。水をタッチすると近くのお魚が見に来ます。30秒ごとにお客さん（マンボウ、カニ、マンタなど）が通りかかります。入れた絵は3分たつとサメが食べに来ます。</p>
+  <div class="drop-row">
   <label class="drop" id="drop" tabindex="0">
     <strong>絵を入れる</strong>
     <span>ここをタップ、または画像をドラッグ（複数OK）</span>
     <input type="file" id="file" accept="image/*" multiple class="picker" aria-label="絵を入れる">
-  </label>  <div class="row">
+  </label>
+  <button class="paint-open" id="paintOpen">🎨<br>ぬりえ</button>
+  </div>  <div class="row">
     <label for="tol">紙の白を消す強さ</label>
     <input type="range" id="tol" min="10" max="120" value="55">
   </div>
@@ -103,6 +128,24 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
   </div>
 </section>
 <button class="show-btn" id="showTray" hidden>パネル</button>
+<section class="paint" id="paint" hidden aria-label="ぬりえ">
+  <div class="paint-head">
+    <h2>🎨 ぬりえ</h2>
+    <button id="pPrint" title="線画を印刷して紙に塗る">🖨 印刷</button>
+    <button id="pClose" aria-label="とじる">✕</button>
+  </div>
+  <div class="tpl" id="pTpl"></div>
+  <div class="paint-stage"><div class="paint-board" id="pBoard"><canvas id="pColor" width="600" height="600"></canvas><canvas id="pLines" width="600" height="600"></canvas></div></div>
+  <div class="colors" id="pColors"></div>
+  <div class="tools">
+    <button id="tFill" class="on">🪣 ぬる</button>
+    <button id="tPen">✏️ ペン</button>
+    <button id="tErase">🧽 けす</button>
+    <button id="pUndo">↩ もどす</button>
+    <button id="pGo" class="primary">🐟 泳がせる！</button>
+  </div>
+</section>
+
 
 <script>
 (() => {
@@ -1365,6 +1408,173 @@ document.getElementById('fs').onclick = async () => {
   try { await document.documentElement.requestFullscreen(); setTray(false); } catch (_) { setTray(false); }
   try { wake = await navigator.wakeLock?.request('screen'); } catch (_) {}
 };
+
+/* ---------- coloring book: pick a line drawing, colour it, send it into the tank ----------
+   Each template is drawn at 600x600: "parts" are closed shapes (their union is the creature's outline),
+   "lines" divide the inside into areas to fill, "dots" are eyes. Fill = flood fill bounded by the lines. */
+const PAINT = (() => {
+  const S = 600, LW = 8;
+  const TPL = [
+    {name: 'さかな', mode: 'swim', draw(t) {
+      t.part(p => { p.moveTo(150, 300); p.lineTo(40, 190); p.quadraticCurveTo(75, 300, 40, 410); p.closePath(); });
+      t.part(p => { p.moveTo(250, 205); p.quadraticCurveTo(290, 90, 400, 200); p.closePath(); });
+      t.part(p => p.ellipse(320, 300, 190, 120, 0, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(255, 184); p.quadraticCurveTo(232, 300, 255, 416); });
+      t.line(p => { p.moveTo(350, 182); p.quadraticCurveTo(326, 300, 350, 418); });
+      t.line(p => { p.moveTo(440, 205); p.quadraticCurveTo(402, 300, 440, 395); });
+      t.line(p => { p.moveTo(300, 330); p.quadraticCurveTo(290, 395, 345, 380); p.quadraticCurveTo(335, 345, 300, 330); });
+      t.dot(478, 268, 15); t.line(p => { p.moveTo(490, 335); p.quadraticCurveTo(475, 345, 488, 352); });
+    }},
+    {name: 'ふぐ', mode: 'float', draw(t) {
+      for (let a = -150; a <= 150; a += 30) { const r = a * Math.PI / 180; t.part(p => { const c = Math.cos(r), s = Math.sin(r); p.moveTo(300 + 150 * Math.cos(r - .12), 310 + 150 * Math.sin(r - .12)); p.lineTo(300 + 205 * c, 310 + 205 * s); p.lineTo(300 + 150 * Math.cos(r + .12), 310 + 150 * Math.sin(r + .12)); p.closePath(); }); }
+      t.part(p => { p.moveTo(150, 310); p.lineTo(70, 240); p.quadraticCurveTo(95, 310, 70, 380); p.closePath(); });
+      t.part(p => p.arc(300, 310, 165, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(152, 385); p.quadraticCurveTo(300, 520, 448, 385); });
+      for (const [x, y, r] of [[230, 220, 20], [300, 190, 17], [190, 290, 16], [270, 270, 14]]) t.line(p => p.arc(x, y, r, 0, Math.PI * 2));
+      t.dot(385, 268, 16); t.line(p => p.arc(450, 330, 12, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(330, 350); p.quadraticCurveTo(320, 410, 370, 395); p.quadraticCurveTo(360, 360, 330, 350); });
+    }},
+    {name: 'くじら', mode: 'swim', draw(t) {
+      t.part(p => { p.moveTo(120, 320); p.lineTo(25, 215); p.quadraticCurveTo(70, 300, 20, 330); p.quadraticCurveTo(70, 345, 30, 420); p.closePath(); });
+      t.part(p => { p.moveTo(110, 330); p.quadraticCurveTo(120, 180, 310, 170); p.quadraticCurveTo(540, 165, 560, 320); p.quadraticCurveTo(555, 430, 390, 435); p.lineTo(230, 435); p.quadraticCurveTo(120, 430, 110, 330); p.closePath(); });
+      t.line(p => { p.moveTo(160, 405); p.quadraticCurveTo(360, 470, 556, 360); });
+      for (let i = 0; i < 4; i++) t.line(p => { p.moveTo(300 + i * 50, 418 - i * 6); p.lineTo(318 + i * 50, 450 - i * 18); });
+      t.line(p => { p.moveTo(270, 390); p.quadraticCurveTo(250, 450, 320, 420); });
+      t.dot(468, 300, 13);
+      t.line(p => { p.moveTo(400, 165); p.quadraticCurveTo(380, 110, 340, 100); p.moveTo(400, 165); p.quadraticCurveTo(420, 100, 460, 95); p.moveTo(400, 165); p.lineTo(400, 85); });
+    }},
+    {name: 'たこ', mode: 'float', draw(t) {
+      for (let i = 0; i < 6; i++) { const x0 = 175 + i * 50, w = (i % 2 ? 22 : -22); t.part(p => { p.moveTo(x0 - 20, 300); p.quadraticCurveTo(x0 - 30 + w, 420, x0 + w, 520); p.quadraticCurveTo(x0 + 26 + w, 420, x0 + 20, 300); p.closePath(); }); }
+      t.part(p => p.ellipse(300, 220, 155, 145, 0, 0, Math.PI * 2));
+      for (let i = 0; i < 6; i++) { const x0 = 175 + i * 50, w = (i % 2 ? 22 : -22); for (const k of [.45, .65, .85]) t.line(p => p.arc(x0 + w * k * 1.1, 300 + 220 * k, 6, 0, Math.PI * 2)); }
+      t.dot(248, 225, 14); t.dot(352, 225, 14); t.line(p => p.arc(300, 290, 15, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(160, 175); p.quadraticCurveTo(300, 120, 440, 175); });
+    }},
+    {name: 'かめ', mode: 'swim', draw(t) {
+      for (const [x, y, r] of [[190, 195, -.6], [395, 195, .6], [190, 405, .6], [395, 405, -.6]]) t.part(p => p.ellipse(x, y, 70, 32, r, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(130, 300); p.lineTo(80, 285); p.lineTo(130, 320); p.closePath(); });
+      t.part(p => p.ellipse(505, 295, 62, 52, 0, 0, Math.PI * 2));
+      t.part(p => p.ellipse(300, 300, 185, 125, 0, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(250, 245); p.lineTo(350, 245); p.lineTo(385, 300); p.lineTo(350, 355); p.lineTo(250, 355); p.lineTo(215, 300); p.closePath(); });
+      t.line(p => { p.moveTo(250, 245); p.lineTo(210, 188); p.moveTo(350, 245); p.lineTo(390, 188); p.moveTo(250, 355); p.lineTo(210, 412); p.moveTo(350, 355); p.lineTo(390, 412); p.moveTo(215, 300); p.lineTo(116, 300); p.moveTo(385, 300); p.lineTo(484, 300); });
+      t.dot(525, 280, 10); t.line(p => { p.moveTo(535, 318); p.quadraticCurveTo(548, 325, 558, 315); });
+    }},
+    {name: 'エンゼル', mode: 'swim', draw(t) {
+      t.part(p => { p.moveTo(260, 170); p.lineTo(215, 30); p.quadraticCurveTo(330, 90, 380, 190); p.closePath(); });
+      t.part(p => { p.moveTo(260, 430); p.lineTo(215, 570); p.quadraticCurveTo(330, 510, 380, 410); p.closePath(); });
+      t.part(p => { p.moveTo(160, 300); p.lineTo(70, 220); p.quadraticCurveTo(95, 300, 70, 380); p.closePath(); });
+      t.part(p => { p.moveTo(150, 300); p.quadraticCurveTo(300, 80, 480, 285); p.quadraticCurveTo(495, 300, 480, 315); p.quadraticCurveTo(300, 520, 150, 300); p.closePath(); });
+      t.line(p => { p.moveTo(250, 160); p.quadraticCurveTo(225, 300, 250, 440); });
+      t.line(p => { p.moveTo(340, 168); p.quadraticCurveTo(312, 300, 340, 432); });
+      t.dot(425, 280, 13); t.line(p => { p.moveTo(400, 340); p.quadraticCurveTo(380, 380, 420, 375); });
+    }},
+  ];
+  const COLORS = ['#ff5a5a', '#ff9a3c', '#ffd93b', '#9be15d', '#3cb371', '#5ac8fa', '#3b7bff', '#a970ff', '#ff8cc6', '#a0522d', '#333333', '#ffffff'];
+  let cur = 0, color = COLORS[1], tool = 'fill', undo = [];
+  const root = document.getElementById('paint'), cC = document.getElementById('pColor'), cL = document.getElementById('pLines');
+  const xC = cC.getContext('2d', {willReadFrequently: true}), xL = cL.getContext('2d', {willReadFrequently: true});
+  const mask = document.createElement('canvas'); mask.width = mask.height = S; const xM = mask.getContext('2d', {willReadFrequently: true});
+  let lineA = null, maskA = null; // alpha maps for the flood fill
+
+  function render(tpl, lc, mc, lw = LW) { // draw a template's lines into lc (and its silhouette into mc)
+    const api = {
+      part(f) { const p = new Path2D(); f(p);
+        if (mc) { mc.fillStyle = '#fff'; mc.fill(p); }
+        lc.save(); lc.globalCompositeOperation = 'destination-out'; lc.fill(p); lc.restore(); // hide earlier lines inside it
+        lc.lineWidth = lw; lc.lineJoin = lc.lineCap = 'round'; lc.strokeStyle = '#222'; lc.stroke(p); },
+      line(f) { const p = new Path2D(); f(p); lc.lineWidth = lw * .8; lc.lineJoin = lc.lineCap = 'round'; lc.strokeStyle = '#222'; lc.stroke(p); },
+      dot(x, y, r) { lc.fillStyle = '#222'; lc.beginPath(); lc.arc(x, y, r, 0, Math.PI * 2); lc.fill(); lc.fillStyle = '#fff'; lc.beginPath(); lc.arc(x + r * .35, y - r * .35, r * .3, 0, Math.PI * 2); lc.fill(); },
+    };
+    tpl.draw(api);
+  }
+  function load(i) {
+    cur = i; undo = [];
+    xC.clearRect(0, 0, S, S); xL.clearRect(0, 0, S, S); xM.clearRect(0, 0, S, S);
+    render(TPL[i], xL, xM);
+    lineA = xL.getImageData(0, 0, S, S).data; maskA = xM.getImageData(0, 0, S, S).data;
+    [...tplBox.children].forEach((b, k) => b.classList.toggle('on', k === i));
+  }
+  const snap = () => { undo.push(xC.getImageData(0, 0, S, S)); if (undo.length > 20) undo.shift(); };
+  function fill(px, py) {
+    const k0 = py * S + px; if (lineA[k0 * 4 + 3] > 100 || !maskA[k0 * 4 + 3]) return;
+    snap();
+    const img = xC.getImageData(0, 0, S, S), d = img.data, seen = new Uint8Array(S * S), st = [k0];
+    const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+    const paint = k => { d[k*4] = r; d[k*4+1] = g; d[k*4+2] = b; d[k*4+3] = 255; };
+    seen[k0] = 1;
+    while (st.length) {
+      const k = st.pop(), x = k % S; paint(k);
+      for (const n of [x > 0 ? k - 1 : -1, x < S - 1 ? k + 1 : -1, k - S, k + S]) {
+        if (n < 0 || n >= S * S || seen[n]) continue; seen[n] = 1;
+        if (!maskA[n * 4 + 3]) continue;
+        if (lineA[n * 4 + 3] > 100) { paint(n); continue; } // colour just under the line so no white rim shows
+        st.push(n);
+      }
+    }
+    xC.putImageData(img, 0, 0);
+  }
+  let drawing = false, last = null;
+  const pos = e => { const r = cL.getBoundingClientRect(); return [Math.round((e.clientX - r.left) * S / r.width), Math.round((e.clientY - r.top) * S / r.height)]; };
+  function stroke(a, b) {
+    xC.save(); xC.lineCap = xC.lineJoin = 'round'; xC.lineWidth = tool === 'erase' ? 40 : 22;
+    xC.globalCompositeOperation = tool === 'erase' ? 'destination-out' : 'source-over'; xC.strokeStyle = color;
+    xC.beginPath(); xC.moveTo(a[0], a[1]); xC.lineTo(b[0], b[1]); xC.stroke();
+    xC.globalCompositeOperation = 'destination-in'; xC.drawImage(mask, 0, 0); // stay inside the creature
+    xC.restore();
+  }
+  cL.addEventListener('pointerdown', e => {
+    e.preventDefault(); const p = pos(e);
+    if (tool === 'fill') { fill(Math.min(S - 1, Math.max(0, p[0])), Math.min(S - 1, Math.max(0, p[1]))); SND.water(); return; }
+    snap(); drawing = true; last = p; stroke(p, p); cL.setPointerCapture(e.pointerId);
+  });
+  cL.addEventListener('pointermove', e => { if (!drawing) return; const p = pos(e); stroke(last, p); last = p; });
+  ['pointerup', 'pointercancel'].forEach(ev => cL.addEventListener(ev, () => { drawing = false; }));
+
+  // build the result: white inside the outline, the colours, the lines on top; transparent outside, cropped
+  function result() {
+    const o = document.createElement('canvas'); o.width = o.height = S; const x = o.getContext('2d');
+    x.drawImage(mask, 0, 0); x.globalCompositeOperation = 'source-atop'; x.drawImage(cC, 0, 0);
+    x.globalCompositeOperation = 'source-over'; x.drawImage(cL, 0, 0);
+    const a = x.getImageData(0, 0, S, S).data; let x0 = S, y0 = S, x1 = 0, y1 = 0;
+    for (let y = 0; y < S; y++) for (let i = 0; i < S; i++) if (a[(y * S + i) * 4 + 3] > 20) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const c = document.createElement('canvas'); c.width = x1 - x0 + 3; c.height = y1 - y0 + 3;
+    c.getContext('2d').drawImage(o, x0 - 1, y0 - 1, c.width, c.height, 0, 0, c.width, c.height);
+    return c;
+  }
+  // UI
+  const tplBox = document.getElementById('pTpl'), colBox = document.getElementById('pColors');
+  TPL.forEach((t, i) => {
+    const b = document.createElement('button'), c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d'); x.scale(128 / S, 128 / S); render(t, x, null, 14);
+    b.append(c); b.title = t.name; b.setAttribute('aria-label', t.name); b.onclick = () => load(i); tplBox.append(b);
+  });
+  COLORS.forEach(col => {
+    const b = document.createElement('button'); b.style.background = col; b.setAttribute('aria-label', col);
+    b.onclick = () => { color = col; [...colBox.children].forEach(k => k.classList.toggle('on', k === b)); if (tool === 'erase') setTool('fill'); };
+    if (col === color) b.classList.add('on'); colBox.append(b);
+  });
+  const tb = {fill: 'tFill', pen: 'tPen', erase: 'tErase'};
+  function setTool(t) { tool = t; for (const k in tb) document.getElementById(tb[k]).classList.toggle('on', k === t); }
+  for (const k in tb) document.getElementById(tb[k]).onclick = () => setTool(k);
+  document.getElementById('pUndo').onclick = () => { const u = undo.pop(); if (u) xC.putImageData(u, 0, 0); };
+  document.getElementById('pClose').onclick = () => { root.hidden = true; };
+  document.getElementById('pGo').onclick = () => {
+    const t = TPL[cur];
+    addCreature(result(), 'ぬりえ：' + t.name, {scale: .26, user: true, mode: t.mode, at: {x: W / 2, y: H * .45}});
+    SND.add(); root.hidden = true; load(cur);
+    document.getElementById('tray').classList.add('hide'); document.getElementById('showTray').hidden = false;
+  };
+  document.getElementById('pPrint').onclick = () => { // a big clean line drawing to print and colour on paper
+    const c = document.createElement('canvas'); c.width = c.height = 1200; const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, 1200, 1200); x.scale(2, 2); render(TPL[cur], x, null, 5);
+    const w = window.open('', '_blank'); if (!w) return;
+    w.document.write(`<title>ぬりえ</title><style>body{margin:0;display:grid;place-items:center;min-height:100vh}img{width:90vmin}</style><img src="${c.toDataURL()}" onload="setTimeout(()=>print(),300)">`);
+    w.document.close();
+  };
+  load(0);
+  return {open() { root.hidden = false; }};
+})();
+document.getElementById('paintOpen').onclick = () => PAINT.open();
 
 resize();
 samples.forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));

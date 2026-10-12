@@ -74,9 +74,9 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 .item button { padding: 4px 7px; font-size: 12px; flex: none; }
 .item .name.life { font-size: 12px; line-height: 1.4; color: var(--accent); white-space: normal; font-variant-numeric: tabular-nums; }
 .item button.del { color: var(--danger); }
-.worlds { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.worlds span { font-size: 12px; color: var(--ink-soft); margin-right: 2px; }
-.worlds button { padding: 5px 8px; font-size: 12px; }
+.worlds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.worlds span { grid-column: 1 / -1; font-size: 13px; color: var(--ink-soft); }
+.worlds button { padding: 10px 4px; font-size: 15px; border-radius: 14px; white-space: nowrap; }
 .worlds button.on { background: var(--accent); color: #2b2000; border-color: transparent; font-weight: 700; }
 .count { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .show-btn {
@@ -1810,6 +1810,26 @@ const PAINT = (() => {
       t.line(p => p.arc(300, 175, 55, 0, Math.PI * 2)); t.dot(305, 178, 24);
       for (const k of [-1, 1]) t.line(p => p.arc(300 + k * 80, 235, 14, 0, Math.PI * 2));
       t.line(p => { p.moveTo(280, 255); p.quadraticCurveTo(300, 272, 320, 255); });
+    }},
+    {name: 'ガイコツ', world: 'yokai', mode: 'hop', draw(t) {
+      const bone = (x1, y1, x2, y2, w) => { // a chunky bone with knobs at both ends
+        const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy), nx = -dy / L * w / 2, ny = dx / L * w / 2;
+        for (const [x, y] of [[x1, y1], [x2, y2]]) for (const k of [-1, 1]) t.part(p => p.arc(x + nx * k * .9, y + ny * k * .9, w * .55, 0, Math.PI * 2));
+        t.part(p => { p.moveTo(x1 + nx, y1 + ny); p.lineTo(x2 + nx, y2 + ny); p.lineTo(x2 - nx, y2 - ny); p.lineTo(x1 - nx, y1 - ny); p.closePath(); });
+      };
+      bone(210, 305, 135, 400, 26); bone(390, 305, 465, 400, 26);
+      bone(275, 455, 255, 545, 30); bone(325, 455, 345, 545, 30);
+      t.part(p => p.ellipse(238, 562, 42, 18, 0, 0, Math.PI * 2)); t.part(p => p.ellipse(362, 562, 42, 18, 0, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(286, 260); p.lineTo(314, 260); p.lineTo(314, 430); p.lineTo(286, 430); p.closePath(); });
+      for (const y of [300, 338, 376]) t.part(p => { p.moveTo(215, y - 12); p.quadraticCurveTo(300, y - 30, 385, y - 12); p.lineTo(385, y + 12); p.quadraticCurveTo(300, y - 6, 215, y + 12); p.closePath(); });
+      t.part(p => p.ellipse(300, 440, 72, 34, 0, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(240, 210); p.lineTo(360, 210); p.quadraticCurveTo(365, 272, 330, 275); p.lineTo(270, 275); p.quadraticCurveTo(235, 272, 240, 210); p.closePath(); });
+      t.part(p => p.arc(300, 150, 108, 0, Math.PI * 2));
+      t.line(p => p.arc(258, 150, 30, 0, Math.PI * 2)); t.line(p => p.arc(342, 150, 30, 0, Math.PI * 2));
+      t.dot(262, 152, 11); t.dot(346, 152, 11);
+      t.line(p => { p.moveTo(300, 190); p.lineTo(288, 212); p.lineTo(312, 212); p.closePath(); });
+      t.line(p => { p.moveTo(252, 245); p.lineTo(348, 245); for (const x of [272, 300, 328]) { p.moveTo(x, 232); p.lineTo(x, 258); } });
+      t.line(p => { p.moveTo(250, 440); p.quadraticCurveTo(300, 470, 350, 440); });
     }},
     {name: 'ブラキオ', world: 'dino', mode: 'swim', draw(t) {
       t.part(p => { p.moveTo(160, 345); p.quadraticCurveTo(70, 370, 10, 470); p.quadraticCurveTo(110, 430, 165, 425); p.closePath(); });

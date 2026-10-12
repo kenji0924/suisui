@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>すいすいスケッチ</title>
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -31,10 +31,10 @@
   --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
   color-scheme: dark;
 }
-html, body { height: 100%; }
+html, body { height: 100%; touch-action: pan-x pan-y; } /* scrolling inside the panel is fine, pinch-zoom is not */
 body { background: var(--water-deep); color: var(--ink); font-family: var(--font-body); overflow: hidden; }
 #stage { position: fixed; inset: 0; }
-#tank { display: block; width: 100%; height: 100%; touch-action: manipulation; cursor: pointer; }
+#tank { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
 
 .tray {
   position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
@@ -3007,6 +3007,11 @@ const yokaiSamples = [
   ['見本：きつね', ykSprite(260, 260, x => { x.translate(0, 40); drawFox(x, 230, 0, true); }), {mode: 'swim'}],
 ];
 
+// no pinch-zoom or double-tap zoom anywhere (iOS Safari ignores user-scalable=no, so block the gestures too)
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, {passive: false});
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTouchEnd < 300 && e.target === cv) e.preventDefault(); lastTouchEnd = now; }, {passive: false});
 resize();
 SAMPLES().forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));
 showWorld();

@@ -346,6 +346,8 @@ function draw(c, t) {
   else if (c.mode === 'float') { sy = 1 + wob * .06; sx *= 1 - wob * .04; }
   else { const sq = c.vy < 0 ? 1.06 : .97; sy = sq; sx *= 2 - sq; }
   if (c.launch) rot = c.launch.rot;
+  if (c.abduct) { rot = c.spin2 || 0; sx *= c.shrink || 1; sy *= c.shrink || 1; }
+  if (c.drop) rot = c.drop.rot;
   ctx.save();
   ctx.translate(c.x, c.y + jumpY); ctx.rotate(rot + (1 - (c.spin || 0)) * (c.spin > 0 ? Math.PI * 2 : 0) * (c.vx > 0 ? 1 : -1)); ctx.scale(sx, sy);
   ctx.shadowColor = 'rgba(0,10,20,.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 8;
@@ -363,6 +365,9 @@ function loop(t) {
   if (WORLD === 'dino') checkVolcano(); else checkShark();
   drawVisitors(dt, 'back');
   for (const c of [...creatures]) {
+    if (c.hidden) { c.hideT -= dt; if (c.hideT <= 0) { c.hidden = false; c.x = W * (.15 + Math.random() * .7); c.y = -c.h; c.drop = {vy: 0, rot: 0}; } continue; } // away on the UFO
+    if (c.abduct) { draw(c, t); continue; }
+    if (c.drop) { updateReturn(c, dt); draw(c, t); continue; }
     if (c.launch && !updateLaunched(c, dt)) { creatures.splice(creatures.indexOf(c), 1); originals.delete(c.id); renderList(); continue; }
     if (!c.launch) update(c, dt, t);
     draw(c, t);
@@ -457,6 +462,7 @@ const SND = (() => {
     whee()   { tone('sine', [400, 1600], 0, .7, .14); },
     twinkle(){ [96, 100, 103, 108].forEach((m, i) => tone('sine', hz(m), i * .06, .5, .09)); },
     add()    { [0, 4, 7, 12, 16].forEach((d, i) => tone('triangle', hz(72 + d), i * .06, .5, .18)); },
+    ufoHum() { for (let i = 0; i < 3; i++) tone('sine', [700, 500], i * .25, .25, .05); },
     arrive() { tone('sine', hz(84), 0, .8, .14); tone('sine', hz(91), .18, 1, .12); },
     eel()    { tone('sine', [700, 220], 0, .15, .3); },
     crab()   { for (let i = 0; i < 4; i++) noise(i * .13, .05, .5, 3500, 2500, 6); },
@@ -479,6 +485,7 @@ const SND = (() => {
         case 'brachio':  tone('sine', [110, 140], 0, .9, .3, sfxBus, .1); tone('sine', [140, 100], .8, .9, .25, sfxBus, .1); break;
         case 'stego':    [84, 88, 91, 96, 100].forEach((m, i) => tone('triangle', hz(m), i * .07, .5, .1)); break;
         case 'parasaur': [67, 72, 76, 79, 76, 72, 74, 79].forEach((m, i) => { tone('sawtooth', hz(m - 12), i * .34, .32, .07, sfxBus, .05); tone('sine', hz(m), i * .34, .32, .14, sfxBus, .05); }); break; // a horn-like song
+        case 'ufo':      for (let i = 0; i < 4; i++) tone('sine', [500 + i * 120, 900 + i * 160], i * .35, .35, .1); tone('triangle', [300, 1400], 0, 1.8, .06, sfxBus, .3); break;
         case 'pachy':    tone('square', [500, 900], 0, .15, .08); break;
         case 'tricera':  for (let i = 0; i < 6; i++) { tone('sine', [110, 50], i * .12, .12, .35); } break;
         case 'ptera':    tone('square', [1800, 1200], 0, .2, .08); tone('square', [1900, 1300], .22, .25, .08); break;
@@ -502,7 +509,7 @@ let spawnAt = null;
 const ripples = [];
 function hit(px, py) {
   for (let i = creatures.length - 1; i >= 0; i--) { // topmost first
-    const c = creatures[i], pad = 24; // generous for small fingers
+    const c = creatures[i], pad = 24; if (c.hidden) continue; // generous for small fingers
     const cy = c.y - Math.sin(c.jump * Math.PI) * c.h * .8;
     if (Math.abs(px - c.x) < c.w / 2 + pad && Math.abs(py - cy) < c.h / 2 + pad) return c;
   }
@@ -684,7 +691,7 @@ function spawnVisitor(kind) {
 function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
-  const kinds = (WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio']).filter(k => k !== lastKind);
+  const kinds = (WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio']).filter(k => k !== lastKind);
   lastKind = FORCE && clock < 5 ? FORCE : kinds[Math.floor(Math.random() * kinds.length)];
   spawnVisitor(lastKind); SND.arrive();
 }
@@ -1205,7 +1212,7 @@ function sharkSprite(open) {
 const SHARK = [sharkSprite(false), sharkSprite(true)];
 let shark = null;
 const pops = [];
-function expired() { return creatures.filter(c => c.user && clock - c.born >= LIFE); }
+function expired() { return creatures.filter(c => c.user && clock - c.born >= LIFE && !c.hidden && !c.abduct && !c.drop); }
 function checkShark() {
   const due = expired();
   for (const c of due) c.fear = true;
@@ -2173,6 +2180,9 @@ function spawnDino(kind) {
   if (WALKERS[kind]) {
     const k = WALKERS[kind], w = m * k.w, h = w * k.spr.height / k.spr.width;
     visitors.push({kind, layer: k.layer, w, h, x: side > 0 ? -w / 2 : W + w / 2, y: G + 6, dir: side, t: 0, step: 0});
+  } else if (kind === 'ufo') { // a little saucer drifting across the sky
+    const w = m * .3;
+    visitors.push({kind, layer: 'front', w, h: w * .55, x: side > 0 ? -w : W + w, y: H * .17, dir: side, t: 0, beam: null});
   } else if (kind === 'pachy') { // two head-butters walk in from both sides
     const w = m * .42, h = w * DSPR.pachy.height / DSPR.pachy.width, cx = W * (.4 + Math.random() * .2);
     visitors.push({kind, layer: 'front', w, h, y: G + 6, cx, t: 0, phase: 'in', pt: 0, count: 0, dizzy: 0,
@@ -2211,6 +2221,7 @@ function drawDinoVisitor(v, dt, P) { // returns false when it has left
     return v.dir > 0 ? v.x - v.w / 2 < W : v.x + v.w / 2 > 0;
   }
   if (v.kind === 'pachy') return drawPachy(v, dt);
+  if (v.kind === 'ufo') return drawUfo(v, dt);
   if (v.kind === 'ptera') {
     v.x += v.dir * (P >= 0 ? 60 : 120) * dt;
     for (const b of v.list) {
@@ -2250,6 +2261,53 @@ function drawDinoVisitor(v, dt, P) { // returns false when it has left
     return v.x > -60 && v.y < GROUND() - 40;
   }
   return false;
+}
+/* UFO: tap it and it shines a beam down, lifts a creature up and flies off with it.
+   The creature comes back a few seconds later, dropping out of the sky ("ただいま！"). */
+function drawUfo(v, dt) {
+  const G = GROUND(), B = v.beam;
+  if (!B) { v.x += v.dir * 60 * dt; v.y = H * .17 + Math.sin(v.t * 2) * 10; }
+  else {
+    B.t += dt; const c = B.c;
+    if (B.t < .7) { if (c) v.x += (c.x - v.x) * Math.min(1, dt * 5); }
+    else if (B.t < 2.6) { // lifting
+      if (c) { const k = (B.t - .7) / 1.9; c.abduct = true; c.x = v.x + Math.sin(B.t * 6) * 6; c.y = c.baseY + (v.y + v.h * .3 - c.baseY) * k * k; c.spin2 = (c.spin2 || 0) + dt * 2; c.shrink = 1 - k * .55; }
+    } else if (!B.got) {
+      B.got = true; SND.twinkle();
+      if (c) { c.abduct = false; c.hidden = true; c.hideT = 4.5; c.shrink = 1; c.spin2 = 0; pops.push({x: v.x, y: v.y - v.h, a: 1, text: 'ゲット！'}); }
+    } else { v.x += v.dir * 520 * dt; v.y -= 260 * dt; } // zoom away
+    // the beam
+    const open = B.got ? 0 : Math.min(1, B.t / .5), bw = v.w * .5;
+    if (open > 0) {
+      const g = ctx.createLinearGradient(0, v.y, 0, G); g.addColorStop(0, `rgba(255,255,170,${.55 * open})`); g.addColorStop(1, `rgba(255,255,170,${.15 * open})`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(v.x - bw * .3, v.y + v.h * .2); ctx.lineTo(v.x + bw * .3, v.y + v.h * .2); ctx.lineTo(v.x + bw * (.6 + .1 * Math.sin(v.t * 9)), G); ctx.lineTo(v.x - bw * (.6 + .1 * Math.sin(v.t * 9)), G); ctx.closePath(); ctx.fill();
+      if (Math.random() < .5) fx.push({k: 'spark', x: v.x + (Math.random() - .5) * bw, y: G - Math.random() * (G - v.y), vx: 0, vy: -60, a: .8, s: v.w * .03});
+    }
+  }
+  // saucer
+  ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(Math.sin(v.t * 2.5) * .06);
+  const w = v.w, h = v.h;
+  ctx.fillStyle = 'rgba(170,230,255,.85)'; ctx.strokeStyle = '#3d5a73'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(0, -h * .18, w * .22, h * .38, 0, Math.PI, 0); ctx.fill(); ctx.stroke(); // glass dome
+  ctx.fillStyle = '#8fdc6a'; ctx.beginPath(); ctx.ellipse(0, -h * .22, w * .08, h * .17, 0, 0, 7); ctx.fill(); // little alien
+  ctx.fillStyle = '#111'; for (const sx of [-1, 1]) { ctx.beginPath(); ctx.ellipse(sx * w * .03, -h * .27, w * .018, h * .05, 0, 0, 7); ctx.fill(); }
+  ctx.strokeStyle = '#5f9a45'; ctx.lineWidth = 2; for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * w * .03, -h * .37); ctx.lineTo(sx * w * .06, -h * .5); ctx.stroke(); ctx.fillStyle = '#ffe066'; ctx.beginPath(); ctx.arc(sx * w * .06, -h * .5, 3, 0, 7); ctx.fill(); }
+  const g2 = ctx.createLinearGradient(0, -h * .2, 0, h * .25); g2.addColorStop(0, '#e9eef3'); g2.addColorStop(1, '#8796a5');
+  ctx.fillStyle = g2; ctx.strokeStyle = '#3d5a73'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(0, 0, w * .5, h * .22, 0, 0, 7); ctx.fill(); ctx.stroke();
+  for (let k = 0; k < 6; k++) { // blinking lights
+    const a = (k / 6) * Math.PI * 2 + v.t, lx = Math.cos(a) * w * .38; if (Math.sin(a) < 0) continue;
+    ctx.fillStyle = ['#ff6b6b', '#ffe066', '#7fe0ff'][k % 3]; ctx.globalAlpha = .6 + .4 * Math.sin(v.t * 8 + k);
+    ctx.beginPath(); ctx.arc(lx, h * .04, w * .03, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  return v.x > -v.w * 2 && v.x < W + v.w * 2 && v.y > -v.h * 2;
+}
+function updateReturn(c, dt) { // creature dropping back from the sky after the UFO trip
+  const G = GROUND(), d = c.drop;
+  d.vy += 700 * dt; c.y += d.vy * dt; d.rot += dt * 6;
+  const landY = c.mode === 'float' ? (c.alt || H * .3) : G - c.h / 2;
+  if (c.y >= landY) { c.y = landY; c.drop = null; c.jump = 1; burst('spark', c.x, c.y, 10, c.w * .05, 160); pops.push({x: c.x, y: c.y - c.h * .7, a: 1, text: 'ただいま！'}); SND.bonk(); }
 }
 function drawPachy(v, dt) {
   const A = v.a, B = v.b, gap = () => B.x - A.x, touch = v.w * .86;
@@ -2315,6 +2373,14 @@ function tapDino(px, py, smallOnly) {
         if (v.kind === 'brachio') burst('heart', v.x + v.dir * v.w * .4, v.y - v.h * .9, 6, v.w * .03, 90);
         if (v.kind === 'stego') burst('spark', v.x, v.y - v.h * .8, 12, v.w * .03, 160);
         return true;
+      }
+    } else if (v.kind === 'ufo') {
+      if (!v.beam && inBox(v.x, v.y, v.w, v.h * 1.3)) {
+        // pick the nearest creature (not one that is already busy)
+        let best = null, bd = Infinity;
+        for (const c of creatures) { if (c.launch || c.hidden || c.abduct || c.drop || c.fear) continue; const d = Math.abs(c.x - v.x); if (d < bd) { bd = d; best = c; } }
+        v.beam = {t: 0, c: best, got: false}; if (best) best.baseY = best.y;
+        SND.visitor('ufo'); return true;
       }
     } else if (v.kind === 'pachy') {
       for (const D of [v.a, v.b]) if (inBox(D.x, v.y - v.h / 2, v.w, v.h)) { // one more round!
@@ -2401,6 +2467,7 @@ function setWorld(w) {
   nextVisit = clock + 6;
   // each world keeps its own drawings: put this world's away (their 3-minute timer pauses) and bring the other's back
   const leaving = creatures.filter(c => c.user);
+  for (const c of creatures) { if (c.hidden || c.abduct || c.drop) { c.hidden = false; c.abduct = false; c.drop = null; c.shrink = 1; c.spin2 = 0; c.y = GROUND() - c.h / 2; } }
   for (const c of leaving) { c.fear = false; c.launch = null; c.awayAt = clock; }
   const back = parked[w] || [];
   for (const c of back) { c.born += clock - c.awayAt; c.fear = false; c.launch = null; }

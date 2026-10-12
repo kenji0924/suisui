@@ -306,6 +306,10 @@ function update(c, dt, t) {
     c.dir += ((Math.sign(c.vx) || 1) - c.dir) * Math.min(1, dt * 5);
     return;
   }
+  if (c.cold > 0) { // blown by the snow woman: shiver, then sneeze
+    c.cold = Math.max(0, c.cold - dt); c.x += Math.sin(c.ph * 55) * 1.1;
+    if (!c.cold) { c.jump = 1; c.boost = 2; pops.push({x: c.x, y: c.y - c.h * .6, a: 1, text: 'くしゅん！'}); }
+  }
   if (c.spin > 0) c.spin = Math.max(0, c.spin - dt * 1.4);
   c.boost = Math.max(0, (c.boost || 0) - dt * 2.5);
   const sp = 1 + c.boost; // speed burst after being tapped
@@ -509,6 +513,7 @@ const SND = (() => {
         case 'hitotsume':noise(0, .12, .4, 2000, 800, 1); tone('square', [300, 600], 0, .15, .12); break;
         case 'tengu':    noise(0, 1.2, .5, 300, 3000, .5); break;
         case 'nurikabe': tone('sine', [90, 60], 0, .5, .45); noise(0, .4, .4, 400, 150, .8); tone('triangle', [200, 120], .15, .8, .12); break;
+        case 'yukionna': noise(0, 1.6, .35, 3500, 1200, .6); [96, 100, 103, 108, 103, 108].forEach((m, i) => tone('sine', hz(m), .2 + i * .12, .7, .06)); break;
         case 'oni':      for (let i = 0; i < 6; i++) tone('sine', [110, 50], i * .3, .25, .45); break;
         case 'ufo':      for (let i = 0; i < 4; i++) tone('sine', [500 + i * 120, 900 + i * 160], i * .35, .35, .1); tone('triangle', [300, 1400], 0, 1.8, .06, sfxBus, .3); break;
         case 'pachy':    tone('square', [500, 900], 0, .15, .08); break;
@@ -718,7 +723,7 @@ function spawnVisitor(kind) {
 function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
-  const kinds = (WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio']).filter(k => k !== lastKind);
+  const kinds = (WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio']).filter(k => k !== lastKind);
   lastKind = FORCE && clock < 5 ? FORCE : kinds[Math.floor(Math.random() * kinds.length)];
   spawnVisitor(lastKind); SND.arrive();
 }
@@ -1044,6 +1049,12 @@ function drawFx(dt) {
       const head = (x) => { ctx.beginPath(); ctx.ellipse(x, 0, r * .55, r * .4, -.4, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(x + r * .48, -r * .1); ctx.lineTo(x + r * .48, -r * 1.9); ctx.stroke(); };
       if (f.two) { head(0); head(r * 1.3); ctx.lineWidth = r * .35; ctx.beginPath(); ctx.moveTo(r * .48, -r * 1.85); ctx.lineTo(r * 1.78, -r * 1.85); ctx.stroke(); }
       else { head(0); ctx.beginPath(); ctx.moveTo(r * .48, -r * 1.9); ctx.quadraticCurveTo(r * 1.3, -r * 1.4, r * 1.05, -r * .8); ctx.stroke(); }
+    } else if (f.k === 'snow') {
+      f.ph = (f.ph || 0) + dt * 2; f.vy = Math.max(f.vy, f.fall || 60); f.x += Math.sin(f.ph) * 25 * dt;
+      ctx.fillStyle = '#fff'; ctx.shadowColor = '#bfe6ff'; ctx.shadowBlur = f.s;
+      ctx.rotate(f.ph * .5); ctx.beginPath(); ctx.arc(0, 0, f.s * .45, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, f.s * .18); ctx.lineCap = 'round'; ctx.beginPath();
+      for (let k = 0; k < 6; k++) { ctx.moveTo(0, 0); ctx.lineTo(Math.cos(k * Math.PI / 3) * f.s, Math.sin(k * Math.PI / 3) * f.s); } ctx.stroke();
     } else if (f.k === 'leaf') {
       f.ph += dt * 8; ctx.rotate(f.ph); ctx.fillStyle = '#7fbf4a'; ctx.beginPath(); ctx.ellipse(0, 0, f.s, f.s * .45, 0, 0, 7); ctx.fill();
     } else if (f.k === 'fire' || f.k === 'foxfire') {
@@ -1830,6 +1841,23 @@ const PAINT = (() => {
       t.line(p => { p.moveTo(300, 190); p.lineTo(288, 212); p.lineTo(312, 212); p.closePath(); });
       t.line(p => { p.moveTo(252, 245); p.lineTo(348, 245); for (const x of [272, 300, 328]) { p.moveTo(x, 232); p.lineTo(x, 258); } });
       t.line(p => { p.moveTo(250, 440); p.quadraticCurveTo(300, 470, 350, 440); });
+    }},
+    {name: 'ざしきわらし', world: 'yokai', mode: 'hop', draw(t) {
+      for (const x of [255, 345]) t.part(p => p.ellipse(x, 540, 38, 16, 0, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(170, 285); p.lineTo(170, 220); p.arc(300, 200, 130, Math.PI * .95, Math.PI * .05); p.lineTo(430, 285); p.closePath(); });
+      for (const k of [-1, 1]) t.part(p => { p.moveTo(300 + k * 65, 305); p.lineTo(300 + k * 150, 320); p.lineTo(300 + k * 150, 440); p.lineTo(300 + k * 85, 430); p.closePath(); });
+      t.part(p => { p.moveTo(235, 300); p.lineTo(365, 300); p.lineTo(405, 530); p.lineTo(195, 530); p.closePath(); });
+      t.part(p => { p.moveTo(222, 370); p.lineTo(378, 370); p.lineTo(384, 405); p.lineTo(216, 405); p.closePath(); });
+      t.part(p => p.ellipse(300, 210, 100, 95, 0, 0, Math.PI * 2));
+      t.part(p => { p.arc(300, 200, 130, Math.PI + .116, -.116); p.closePath(); });
+      t.part(p => p.arc(300, 455, 50, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(255, 420); p.lineTo(345, 490); p.moveTo(345, 420); p.lineTo(255, 490); p.moveTo(250, 455); p.lineTo(350, 455); });
+      for (const k of [-1, 1]) t.part(p => p.arc(300 + k * 52, 440, 18, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(268, 302); p.lineTo(300, 345); p.lineTo(332, 302); });
+      t.line(p => { p.moveTo(300, 345); p.lineTo(300, 370); });
+      t.dot(262, 222, 11); t.dot(338, 222, 11);
+      for (const k of [-1, 1]) t.line(p => p.arc(300 + k * 62, 250, 14, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(285, 262); p.quadraticCurveTo(300, 276, 315, 262); });
     }},
     {name: 'ブラキオ', world: 'dino', mode: 'swim', draw(t) {
       t.part(p => { p.moveTo(160, 345); p.quadraticCurveTo(70, 370, 10, 470); p.quadraticCurveTo(110, 430, 165, 425); p.closePath(); });
@@ -2866,6 +2894,31 @@ function drawNurikabe(x, s, grow = 0) { // an old earthen wall with a tiled roof
   x.strokeStyle = '#6b4a2a'; x.lineWidth = Math.max(2, s * .03); x.beginPath(); x.arc(0, fy + s * .1, s * .08, .2, Math.PI - .2); x.stroke();
   x.strokeStyle = 'rgba(140,120,90,.35)'; x.lineWidth = 2; x.beginPath(); x.moveTo(-w * .4, -h * .35); x.lineTo(-w * .3, -h * .3); x.moveTo(w * .3, -h * .8); x.lineTo(w * .38, -h * .74); x.stroke();
 }
+function drawYukionna(x, s, t, blow = 0) { // a gentle snow woman: white kimono, long black hair, no feet
+  x.lineJoin = x.lineCap = 'round'; const lw = Math.max(2, s * .02), sw = Math.sin(t * 2) * s * .06;
+  x.fillStyle = '#1d2233'; x.beginPath(); // long hair behind
+  x.moveTo(-s * .17, -s * .5); x.quadraticCurveTo(-s * .26, -s * .1, -s * .2, s * .08); x.lineTo(s * .06, s * .02); x.lineTo(s * .1, -s * .45); x.closePath(); x.fill();
+  const g = x.createLinearGradient(0, -s * .3, 0, s * .75); g.addColorStop(0, 'rgba(250,252,255,.97)'); g.addColorStop(.7, 'rgba(225,238,255,.85)'); g.addColorStop(1, 'rgba(210,230,255,0)');
+  x.fillStyle = g; x.strokeStyle = 'rgba(140,170,210,.8)'; x.lineWidth = lw; x.beginPath(); // kimono fading into a wisp
+  x.moveTo(-s * .12, -s * .3); x.quadraticCurveTo(-s * .3, s * .15, -s * .12 + sw, s * .55); x.quadraticCurveTo(-s * .05 + sw * 1.5, s * .72, -s * .1 + sw * 2, s * .8);
+  x.quadraticCurveTo(s * .1 + sw, s * .6, s * .2, s * .4); x.quadraticCurveTo(s * .28, s * .1, s * .12, -s * .3); x.closePath(); x.fill(); x.stroke();
+  x.strokeStyle = 'rgba(150,185,225,.9)'; x.beginPath(); x.moveTo(-s * .1, -s * .3); x.lineTo(s * .03, -s * .14); x.lineTo(s * .12, -s * .3); x.stroke(); // collar
+  x.fillStyle = '#7fb8e8'; x.strokeStyle = '#4d86b8'; x.beginPath(); // obi
+  x.moveTo(-s * .2, -s * .1); x.lineTo(s * .2, -s * .1); x.lineTo(s * .22, -s * .01); x.lineTo(-s * .22, -s * .01); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#f7fbff'; x.strokeStyle = 'rgba(140,170,210,.9)'; x.beginPath(); // sleeve reaching forward
+  x.moveTo(s * .05, -s * .25); x.quadraticCurveTo(s * .25, -s * .2, s * .33, -s * .08); x.lineTo(s * .3, s * .08); x.quadraticCurveTo(s * .15, s * .04, s * .05, -s * .08); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#fdf4ef'; x.beginPath(); x.arc(s * .35, -s * .05, s * .035, 0, 7); x.fill(); x.stroke(); // hand
+  const hy = -s * .45; // head
+  x.fillStyle = '#fdf6f2'; x.strokeStyle = '#c9b4ac'; x.beginPath(); x.ellipse(s * .01, hy, s * .14, s * .15, 0, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#1d2233'; x.beginPath(); // bangs and crown
+  x.moveTo(-s * .15, hy + s * .02); x.quadraticCurveTo(-s * .16, hy - s * .19, s * .01, hy - s * .19); x.quadraticCurveTo(s * .17, hy - s * .19, s * .15, hy + s * .01);
+  x.quadraticCurveTo(s * .08, hy - s * .09, s * .02, hy - s * .06); x.quadraticCurveTo(-s * .06, hy - s * .1, -s * .15, hy + s * .02); x.fill();
+  x.fillStyle = '#9fd4ff'; x.beginPath(); x.arc(-s * .1, hy - s * .1, s * .03, 0, 7); x.fill(); // ice hair pin
+  x.strokeStyle = '#1d2233'; x.fillStyle = '#1d2233'; x.lineWidth = Math.max(2, s * .015);
+  for (const ex of [-s * .04, s * .07]) { x.beginPath(); if (blow > .3) x.arc(ex, hy + s * .02, s * .018, 0, 7), x.fill(); else x.arc(ex, hy + s * .005, s * .025, .3, Math.PI - .3), x.stroke(); }
+  x.fillStyle = 'rgba(255,170,190,.5)'; for (const ex of [-s * .07, s * .1]) { x.beginPath(); x.arc(ex, hy + s * .06, s * .025, 0, 7); x.fill(); }
+  x.fillStyle = '#e06a86'; x.beginPath(); if (blow > .3) x.arc(s * .02, hy + s * .09, s * .02 * (1 + blow * .4), 0, 7); else x.ellipse(s * .02, hy + s * .09, s * .018, s * .008, 0, 0, 7); x.fill();
+}
 function drawTanuki(x, s) { // bake-danuki with a leaf on its head
   const b = '#9a6a42', l = '#4a2f1a';
   x.lineJoin = x.lineCap = 'round'; x.fillStyle = b; x.strokeStyle = l; x.lineWidth = Math.max(2, s * .03);
@@ -2908,6 +2961,7 @@ function spawnYokai(kind) {
   else if (kind === 'tengu') add({s: m * .26, x: side > 0 ? -m * .3 : W + m * .3, y: H * (.2 + Math.random() * .1)});
   else if (kind === 'oni') add({s: m * .28, x: side > 0 ? -m * .3 : W + m * .3, y: G});
   else if (kind === 'nurikabe') add({s: m * .32, x: side > 0 ? -m * .3 : W + m * .3, y: G, grow: 0});
+  else if (kind === 'yukionna') add({s: m * .32, x: side > 0 ? -m * .3 : W + m * .3, y: H * (.42 + Math.random() * .1)});
 }
 function drawYokaiVisitor(v, dt, P) {
   const G = GROUND(), act = P >= 0, s = v.s;
@@ -2916,6 +2970,19 @@ function drawYokaiVisitor(v, dt, P) {
     v.x += v.dir * (act ? 60 : 120) * dt; v.y += Math.sin(v.t) * 10 * dt;
     if (act) { ctx.translate(v.x, v.y); ctx.rotate(-v.dir * P * Math.PI * 2); ctx.translate(-v.x, -v.y); }
     drawMomen(v); return v.dir > 0 ? v.x - v.L < W + 40 : v.x + v.L > -40;
+  }
+  if (v.kind === 'yukionna') { // glides along without feet; tap -> she blows a snowstorm
+    v.x += v.dir * (act ? 8 : 38) * dt; v.y += Math.sin(v.t * 1.2) * 14 * dt;
+    if (Math.random() < dt * 4) fx.push({k: 'snow', x: v.x + (Math.random() - .5) * s * .6, y: v.y + s * (Math.random() * .4 - .2), vx: -v.dir * 10, vy: 30, fall: 30, a: 1.2, s: s * .025});
+    if (act) {
+      ctx.fillStyle = `rgba(200,230,255,${.22 * Math.sin(P * Math.PI)})`; ctx.fillRect(0, 0, W, H); // the air turns icy
+      if (P < .75) {
+        for (let k = 0; k < 3; k++) fx.push({k: 'snow', x: v.x + v.dir * s * .25, y: v.y - s * .42, vx: v.dir * (250 + Math.random() * 350), vy: (Math.random() - .5) * 160, fall: 40, a: 1.6, s: s * (.025 + Math.random() * .03)});
+        if (Math.random() < .6) fx.push({k: 'snow', x: Math.random() * W, y: -10, vx: v.dir * 40, vy: 90, fall: 90 + Math.random() * 60, a: 2.2, s: s * (.02 + Math.random() * .03)});
+      }
+    }
+    ctx.translate(v.x, v.y); ctx.scale(v.dir, 1); drawYukionna(ctx, s, v.t, act ? Math.sin(Math.min(1, P * 4) * Math.PI / 2) * (P < .8 ? 1 : (1 - P) * 5) : 0);
+    return !off();
   }
   if (v.kind === 'chochin' || v.kind === 'tengu') { // flyers
     v.x += v.dir * (act && v.kind === 'chochin' ? 10 : 55) * dt; v.y += Math.sin(v.t * 1.5) * 18 * dt;
@@ -2975,6 +3042,7 @@ function tapYokai(px, py) {
         for (const c of creatures) if (Math.abs(c.x - v.x) < s * 1.6) { c.vx = Math.sign(c.x - v.x || 1) * Math.max(80, Math.abs(c.vx)); c.boost = 2.5; c.jump = 1; } // everyone bumps into the wall
         return true;
       } break;
+      case 'yukionna': if (inBox(v.x, v.y - s * .1, s * .7, s * 1.2) && start(v, 3, 'ふぅ〜〜っ', v.x, v.y - s * .85)) { for (const c of creatures) c.cold = 2 + Math.random(); return true; } break;
       case 'oni': if (inBox(v.x, G - s * .6, s * .9, s * 1.2) && start(v, 2, 'ドンドン！', v.x, G - s * 1.5)) { shake = Math.max(shake, 6); return true; } break;
     }
   }

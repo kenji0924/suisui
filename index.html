@@ -82,7 +82,7 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 .show-btn:hover { opacity: 1; }
 @media (max-width: 480px) { .tray { padding: 12px; } .tray h1 { font-size: 19px; } }
 /* coloring book overlay */
-.paint { position: fixed; inset: 0; z-index: 20; background: #06243b; display: grid; grid-template-rows: auto auto 1fr auto auto auto; gap: 10px;
+.paint { position: fixed; inset: 0; z-index: 20; background: #06243b; display: grid; grid-template-rows: auto auto 1fr auto auto auto auto; gap: 10px;
   padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
 .paint[hidden] { display: none; }
 .paint-head { display: flex; align-items: center; gap: 8px; }
@@ -98,6 +98,10 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 .paint-board canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .tools, .colors { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
 .tools button.on { background: var(--accent); color: #2b2000; border-color: transparent; font-weight: 700; }
+.stamps { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.stamps[hidden] { display: none; }
+.stamps button { font-size: 22px; padding: 4px 10px; border-radius: 12px; }
+.stamps button.on { background: var(--accent); }
 .colors button { width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 3px solid rgba(255,255,255,.35); }
 .colors button.on { border-color: #fff; box-shadow: 0 0 0 3px var(--accent); }
 .drop-row { display: grid; grid-template-columns: 1fr 112px; gap: 8px; }
@@ -166,9 +170,11 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
   <div class="tpl" id="pTpl"></div>
   <div class="paint-stage"><div class="paint-board" id="pBoard"><canvas id="pColor" width="600" height="600"></canvas><canvas id="pLines" width="600" height="600"></canvas></div></div>
   <div class="colors" id="pColors"></div>
+  <div class="stamps" id="pStamps" hidden></div>
   <div class="tools">
     <button id="tFill" class="on">🪣 ぬる</button>
     <button id="tPen">✏️ ペン</button>
+    <button id="tStamp">⭐ スタンプ</button>
     <button id="tErase">🧽 けす</button>
     <button id="pUndo">↩ もどす</button>
   </div>
@@ -1623,7 +1629,42 @@ const PAINT = (() => {
       t.dot(365, 300, 9);
     }},
   ];
-  const COLORS = ['#ff5a5a', '#ff9a3c', '#ffd93b', '#9be15d', '#3cb371', '#5ac8fa', '#3b7bff', '#a970ff', '#ff8cc6', '#a0522d', '#333333', '#ffffff'];
+  const COLORS = ['#ff5a5a', '#ff9a3c', '#ffd93b', '#9be15d', '#3cb371', '#5ac8fa', '#3b7bff', '#a970ff', '#ff8cc6', '#a0522d', '#333333', '#ffffff', 'gold', 'silver'];
+  // gold and silver are shiny: a diagonal gradient with soft highlights, used as the paint source
+  const METAL = {};
+  for (const [name, stops] of [['gold', ['#a8740c', '#f7d26a', '#fff6c8', '#d9a520', '#8f6208', '#f2c84b', '#fff1b0', '#c58f17']], ['silver', ['#7d8792', '#d9e1e8', '#ffffff', '#aab4be', '#6f7a85', '#cfd8e0', '#ffffff', '#9aa5b0']]]) {
+    const c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, S, S); stops.forEach((col, i) => g.addColorStop(i / (stops.length - 1), col));
+    x.fillStyle = g; x.fillRect(0, 0, S, S);
+    x.fillStyle = 'rgba(255,255,255,.85)';
+    for (let i = 0; i < 70; i++) { const px = (i * 97) % S, py = (i * 211) % S, r = 2 + (i % 4); x.beginPath(); x.moveTo(px - r * 2, py); x.lineTo(px, py - r * .5); x.lineTo(px + r * 2, py); x.lineTo(px, py + r * .5); x.closePath(); x.moveTo(px, py - r * 2); x.lineTo(px + r * .5, py); x.lineTo(px, py + r * 2); x.lineTo(px - r * .5, py); x.fill(); }
+    METAL[name] = {canvas: c, data: x.getImageData(0, 0, S, S).data};
+  }
+  const paintStyle = () => METAL[color] ? xC.createPattern(METAL[color].canvas, 'no-repeat') : color;
+  const STAMPS = {star: '⭐', heart: '❤️', flower: '🌸', note: '🎵', dot: '⚪', kira: '✨'};
+  let stamp = 'star', lastStamp = null;
+  function stampPath(kind, r) { // shapes centred on 0,0
+    const p = new Path2D();
+    if (kind === 'star') { for (let k = 0; k < 10; k++) { const rr = k % 2 ? r * .45 : r, a = -Math.PI / 2 + k * Math.PI / 5; k ? p.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : p.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } p.closePath(); }
+    else if (kind === 'heart') { p.moveTo(0, r * .9); p.bezierCurveTo(-r * 1.3, 0, -r * .7, -r * 1.1, 0, -r * .35); p.bezierCurveTo(r * .7, -r * 1.1, r * 1.3, 0, 0, r * .9); p.closePath(); }
+    else if (kind === 'flower') { for (let k = 0; k < 5; k++) { const a = k * Math.PI * 2 / 5 - Math.PI / 2; p.moveTo(Math.cos(a) * r * .55 + r * .42, Math.sin(a) * r * .55); p.arc(Math.cos(a) * r * .55, Math.sin(a) * r * .55, r * .42, 0, Math.PI * 2); } }
+    else if (kind === 'note') { p.ellipse(-r * .2, r * .55, r * .38, r * .28, -.4, 0, Math.PI * 2); p.rect(r * .1, -r * .95, r * .14, r * 1.5); p.moveTo(r * .1, -r * .95); p.quadraticCurveTo(r * .75, -r * .6, r * .6, -r * .1); p.lineTo(r * .24, -r * .55); p.closePath(); }
+    else if (kind === 'dot') { p.arc(0, 0, r * .6, 0, Math.PI * 2); }
+    else { for (let k = 0; k < 8; k++) { const rr = k % 2 ? r * .22 : r, a = -Math.PI / 2 + k * Math.PI / 4; k ? p.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : p.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } p.closePath(); }
+    return p;
+  }
+  function putStamp(x0, y0) {
+    const r = 34, rot = (Math.random() - .5) * .5, p = stampPath(stamp, r);
+    const at = () => { xC.translate(x0, y0); xC.rotate(rot); };
+    xC.save(); at();
+    if (METAL[color]) { xC.save(); xC.clip(p); xC.setTransform(1, 0, 0, 1, 0, 0); xC.drawImage(METAL[color].canvas, 0, 0); xC.restore(); } // shiny: paint the metal through the shape
+    else { xC.fillStyle = color; xC.fill(p); }
+    xC.lineWidth = 3; xC.strokeStyle = 'rgba(0,0,0,.25)'; xC.stroke(p);
+    if (stamp === 'flower') { xC.fillStyle = '#ffe066'; xC.beginPath(); xC.arc(0, 0, r * .3, 0, Math.PI * 2); xC.fill(); xC.stroke(); }
+    xC.restore();
+    xC.save(); xC.globalCompositeOperation = 'destination-in'; xC.drawImage(mask, 0, 0); xC.restore(); // stay inside the creature
+    lastStamp = [x0, y0];
+  }
   let cur = 0, color = COLORS[1], tool = 'fill', undo = [];
   const root = document.getElementById('paint'), cC = document.getElementById('pColor'), cL = document.getElementById('pLines');
   const xC = cC.getContext('2d', {willReadFrequently: true}), xL = cL.getContext('2d', {willReadFrequently: true});
@@ -1653,8 +1694,10 @@ const PAINT = (() => {
     const k0 = py * S + px; if (lineA[k0 * 4 + 3] > 100 || !maskA[k0 * 4 + 3]) return;
     snap();
     const img = xC.getImageData(0, 0, S, S), d = img.data, seen = new Uint8Array(S * S), st = [k0];
-    const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
-    const paint = k => { d[k*4] = r; d[k*4+1] = g; d[k*4+2] = b; d[k*4+3] = 255; };
+    const metal = METAL[color] && METAL[color].data;
+    const r = metal ? 0 : parseInt(color.slice(1, 3), 16), g = metal ? 0 : parseInt(color.slice(3, 5), 16), b = metal ? 0 : parseInt(color.slice(5, 7), 16);
+    const paint = metal ? k => { d[k*4] = metal[k*4]; d[k*4+1] = metal[k*4+1]; d[k*4+2] = metal[k*4+2]; d[k*4+3] = 255; }
+                        : k => { d[k*4] = r; d[k*4+1] = g; d[k*4+2] = b; d[k*4+3] = 255; };
     seen[k0] = 1;
     while (st.length) {
       const k = st.pop(), x = k % S; paint(k);
@@ -1671,7 +1714,7 @@ const PAINT = (() => {
   const pos = e => { const r = cL.getBoundingClientRect(); return [Math.round((e.clientX - r.left) * S / r.width), Math.round((e.clientY - r.top) * S / r.height)]; };
   function stroke(a, b) {
     xC.save(); xC.lineCap = xC.lineJoin = 'round'; xC.lineWidth = tool === 'erase' ? 40 : 22;
-    xC.globalCompositeOperation = tool === 'erase' ? 'destination-out' : 'source-over'; xC.strokeStyle = color;
+    xC.globalCompositeOperation = tool === 'erase' ? 'destination-out' : 'source-over'; xC.strokeStyle = tool === 'erase' ? '#000' : paintStyle();
     xC.beginPath(); xC.moveTo(a[0], a[1]); xC.lineTo(b[0], b[1]); xC.stroke();
     xC.globalCompositeOperation = 'destination-in'; xC.drawImage(mask, 0, 0); // stay inside the creature
     xC.restore();
@@ -1679,9 +1722,15 @@ const PAINT = (() => {
   cL.addEventListener('pointerdown', e => {
     e.preventDefault(); const p = pos(e);
     if (tool === 'fill') { fill(Math.min(S - 1, Math.max(0, p[0])), Math.min(S - 1, Math.max(0, p[1]))); SND.water(); return; }
-    snap(); drawing = true; last = p; stroke(p, p); cL.setPointerCapture(e.pointerId);
+    snap(); drawing = true; last = p; cL.setPointerCapture(e.pointerId);
+    if (tool === 'stamp') { putStamp(p[0], p[1]); SND.visitor('turtle'); return; }
+    stroke(p, p);
   });
-  cL.addEventListener('pointermove', e => { if (!drawing) return; const p = pos(e); stroke(last, p); last = p; });
+  cL.addEventListener('pointermove', e => {
+    if (!drawing) return; const p = pos(e);
+    if (tool === 'stamp') { if (Math.hypot(p[0] - lastStamp[0], p[1] - lastStamp[1]) > 60) putStamp(p[0], p[1]); return; } // drag = a row of stamps
+    stroke(last, p); last = p;
+  });
   ['pointerup', 'pointercancel'].forEach(ev => cL.addEventListener(ev, () => { drawing = false; }));
 
   // build the result: white inside the outline, the colours, the lines on top; transparent outside, cropped
@@ -1703,12 +1752,19 @@ const PAINT = (() => {
     b.append(c); b.title = t.name; b.setAttribute('aria-label', t.name); b.dataset.world = t.world || 'sea'; b.onclick = () => load(i); tplBox.append(b);
   });
   COLORS.forEach(col => {
-    const b = document.createElement('button'); b.style.background = col; b.setAttribute('aria-label', col);
+    const b = document.createElement('button'); b.setAttribute('aria-label', {gold: 'きんいろ', silver: 'ぎんいろ'}[col] || col);
+    b.style.background = col === 'gold' ? 'linear-gradient(135deg,#a8740c,#f7d26a 40%,#fff6c8 50%,#d9a520 70%,#8f6208)' : col === 'silver' ? 'linear-gradient(135deg,#6f7a85,#d9e1e8 40%,#fff 50%,#aab4be 70%,#6f7a85)' : col;
     b.onclick = () => { color = col; [...colBox.children].forEach(k => k.classList.toggle('on', k === b)); if (tool === 'erase') setTool('fill'); };
     if (col === color) b.classList.add('on'); colBox.append(b);
   });
-  const tb = {fill: 'tFill', pen: 'tPen', erase: 'tErase'};
-  function setTool(t) { tool = t; for (const k in tb) document.getElementById(tb[k]).classList.toggle('on', k === t); }
+  const tb = {fill: 'tFill', pen: 'tPen', stamp: 'tStamp', erase: 'tErase'};
+  const stBox = document.getElementById('pStamps');
+  for (const [k, icon] of Object.entries(STAMPS)) {
+    const b = document.createElement('button'); b.textContent = icon; b.setAttribute('aria-label', k);
+    b.onclick = () => { stamp = k; [...stBox.children].forEach(x => x.classList.toggle('on', x === b)); };
+    if (k === stamp) b.classList.add('on'); stBox.append(b);
+  }
+  function setTool(t) { tool = t; for (const k in tb) document.getElementById(tb[k]).classList.toggle('on', k === t); stBox.hidden = t !== 'stamp'; }
   for (const k in tb) document.getElementById(tb[k]).onclick = () => setTool(k);
   document.getElementById('pUndo').onclick = () => { const u = undo.pop(); if (u) xC.putImageData(u, 0, 0); };
   document.getElementById('pClose').onclick = () => NAV.close('paint');

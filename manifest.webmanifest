@@ -1,0 +1,17 @@
+{
+  "name": "すいすいスケッチ",
+  "short_name": "すいすい",
+  "description": "描いた絵が水槽で泳ぎだす、お絵かきアクアリウム",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#06243b",
+  "theme_color": "#0e5d7a",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml"}
+  ]
+}

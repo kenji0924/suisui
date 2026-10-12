@@ -6,6 +6,10 @@
 <title>すいすいスケッチ</title>
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e5d7a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="すいすい">
 <style>*{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -1681,6 +1685,7 @@ const ZUKAN = (() => {
   return {add, update};
 })();
 
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 resize();
 samples.forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));
 requestAnimationFrame(loop);

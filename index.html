@@ -48,7 +48,7 @@ body { background: var(--water-deep); color: var(--ink); font-family: var(--font
 .tray h1 { font-family: var(--font-display); font-weight: 500; font-size: 22px; margin: 0; letter-spacing: .04em; }
 .tray p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
 .drop {
-  border: 2px dashed var(--panel-line); border-radius: 14px; padding: 14px;
+  border: 2px dashed var(--panel-line); border-radius: 14px; padding: 10px 6px; align-content: center;
   display: grid; gap: 6px; justify-items: center; text-align: center; cursor: pointer; position: relative;
   transition: border-color .2s, background .2s;
 }
@@ -87,23 +87,23 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 .paint[hidden] { display: none; }
 .paint-head { display: flex; align-items: center; gap: 8px; }
 .paint-head h2 { font-family: var(--font-display); font-weight: 500; font-size: 20px; margin: 0; flex: 1; }
-.paint-go { display: flex; justify-content: center; }
+.paint-go { display: flex; justify-content: center; padding: 14px 0 6px; }
 .paint-go button { font-size: 18px; padding: 10px 34px; }
 .tpl { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .tpl button { flex: none; padding: 4px; border-radius: 12px; background: #fff; border: 3px solid transparent; }
 .tpl button.on { border-color: var(--accent); }
 .tpl canvas { display: block; width: 64px; height: 64px; }
-.paint-stage { display: grid; place-items: end center; min-height: 0; }
+.paint-stage { display: grid; place-items: start center; min-height: 0; padding-top: 4px; }
 .paint-board { position: relative; width: min(92vw, 100%, 62vh); aspect-ratio: 1; border-radius: 16px; background: #fff; touch-action: none; overflow: hidden; }
 .paint-board canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .tools, .colors { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
 .tools button.on { background: var(--accent); color: #2b2000; border-color: transparent; font-weight: 700; }
 .colors button { width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 3px solid rgba(255,255,255,.35); }
 .colors button.on { border-color: #fff; box-shadow: 0 0 0 3px var(--accent); }
-.drop-row { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
+.drop-row { display: grid; grid-template-columns: 1fr 112px; gap: 8px; }
 .drop-row .drop { min-width: 0; }
 .side { display: grid; gap: 8px; }
-.side .paint-open { padding: 6px 12px; font-size: 14px; }
+.side .paint-open { padding: 10px 12px; font-size: 16px; }
 .zukan { grid-template-rows: auto auto 1fr; }
 .zgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; overflow-y: auto; align-content: start; padding-bottom: 8px; }
 .zcard { background: rgba(255,255,255,.06); border: 1px solid var(--panel-line); border-radius: 14px; padding: 6px; display: grid; gap: 4px; }
@@ -133,8 +133,8 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
     <button class="paint-open" id="zukanOpen">📖 ずかん</button>
   </div>
   <label class="drop" id="drop" tabindex="0">
-    <strong>絵を入れる</strong>
-    <span>ここをタップ、または画像をドラッグ（複数OK）</span>
+    <strong>📷<br>絵を入れる</strong>
+    <span>写真・スキャン</span>
     <input type="file" id="file" accept="image/*" multiple class="picker" aria-label="絵を入れる">
   </label>
   </div>  <div class="row">
@@ -165,7 +165,6 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
   </div>
   <div class="tpl" id="pTpl"></div>
   <div class="paint-stage"><div class="paint-board" id="pBoard"><canvas id="pColor" width="600" height="600"></canvas><canvas id="pLines" width="600" height="600"></canvas></div></div>
-  <div class="paint-go"><button id="pGo" class="primary">🎉 かんせい！</button></div>
   <div class="colors" id="pColors"></div>
   <div class="tools">
     <button id="tFill" class="on">🪣 ぬる</button>
@@ -173,6 +172,7 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
     <button id="tErase">🧽 けす</button>
     <button id="pUndo">↩ もどす</button>
   </div>
+  <div class="paint-go"><button id="pGo" class="primary">🎉 かんせい！</button></div>
 </section>
 
 
@@ -501,7 +501,7 @@ function hit(px, py) {
 cv.addEventListener('pointerdown', e => {
   // panel open: a tap outside it just closes the panel
   const tr = document.getElementById('tray');
-  if (!tr.classList.contains('hide')) { tr.classList.add('hide'); document.getElementById('showTray').hidden = false; return; }
+  if (!tr.classList.contains('hide')) { NAV.close('tray'); return; }
   // small visitors (egg, shooting star, pteranodons) get the tap before the drawings in front of them
   if (WORLD === 'dino' && tapDino(e.clientX, e.clientY, true)) return;
   const px = e.clientX, py = e.clientY, c = hit(px, py);
@@ -1483,7 +1483,32 @@ const sndBtn = document.getElementById('snd');
 const showSnd = () => { sndBtn.textContent = SND.isOn() ? '🔊 音あり' : '🔇 音なし'; sndBtn.setAttribute('aria-pressed', SND.isOn()); };
 sndBtn.onclick = () => { SND.init(); SND.setOn(!SND.isOn()); showSnd(); }; showSnd();
 const tray = document.getElementById('tray'), showBtn = document.getElementById('showTray');
-function setTray(open) { tray.classList.toggle('hide', !open); showBtn.hidden = open; }
+/* screens and the browser's back button: each opened screen (panel, ぬりえ, ずかん) is a history entry,
+   so ◀ closes the screen on top instead of leaving the page. state = {stack: [...screens], d: depth} */
+const NAV = (() => {
+  const st = () => (history.state && history.state.stack) || [];
+  const depth = () => (history.state && history.state.d) || 0;
+  function apply() {
+    const s = st(), topS = s[s.length - 1];
+    tray.classList.toggle('hide', !s.includes('tray')); showBtn.hidden = s.includes('tray');
+    document.getElementById('paint').hidden = topS !== 'paint';
+    document.getElementById('zukan').hidden = topS !== 'zukan';
+  }
+  let after = null;
+  addEventListener('popstate', () => { apply(); const f = after; after = null; if (f) f(); });
+  return {
+    apply,
+    open(name) { if (st()[st().length - 1] === name) return; history.pushState({stack: [...st(), name], d: depth() + 1}, ''); apply(); },
+    close(name, then) { // close the top screen (or the panel)
+      const s = st();
+      if (!s.includes(name)) { if (then) then(); return; }
+      if (s[s.length - 1] === name && depth() > 0) { after = then || null; history.back(); return; }
+      history.replaceState({stack: s.filter(x => x !== name), d: depth()}, ''); apply(); if (then) then();
+    },
+  };
+})();
+history.replaceState({stack: tray.classList.contains('hide') ? [] : ['tray'], d: 0}, '');
+function setTray(open) { if (open) NAV.open('tray'); else NAV.close('tray'); }
 document.getElementById('hideTray').onclick = () => setTray(false);
 showBtn.onclick = () => setTray(true);
 addEventListener('keydown', e => { if (e.key === 'h' || e.key === 'H') setTray(tray.classList.contains('hide')); });
@@ -1686,13 +1711,13 @@ const PAINT = (() => {
   function setTool(t) { tool = t; for (const k in tb) document.getElementById(tb[k]).classList.toggle('on', k === t); }
   for (const k in tb) document.getElementById(tb[k]).onclick = () => setTool(k);
   document.getElementById('pUndo').onclick = () => { const u = undo.pop(); if (u) xC.putImageData(u, 0, 0); };
-  document.getElementById('pClose').onclick = () => { root.hidden = true; };
+  document.getElementById('pClose').onclick = () => NAV.close('paint');
   document.getElementById('pGo').onclick = () => {
     const t = TPL[cur];
     addCreature(result(), 'ぬりえ：' + t.name, {scale: .26, user: true, mode: t.mode, at: {x: W / 2, y: H * .45}});
     ZUKAN.add(creatures[creatures.length - 1]);
-    SND.add(); root.hidden = true; load(cur);
-    document.getElementById('tray').classList.add('hide'); document.getElementById('showTray').hidden = false;
+    SND.add(); load(cur);
+    NAV.close('paint', () => NAV.close('tray'));
   };
   document.getElementById('pPrint').onclick = () => { // a big clean line drawing to print and colour on paper
     const c = document.createElement('canvas'); c.width = c.height = 1200; const x = c.getContext('2d');
@@ -1705,7 +1730,7 @@ const PAINT = (() => {
   return {open() { // show only this world's line drawings
     [...tplBox.children].forEach(b => { b.hidden = b.dataset.world !== WORLD; });
     if ((TPL[cur].world || 'sea') !== WORLD) load(TPL.findIndex(t => (t.world || 'sea') === WORLD));
-    root.hidden = false;
+    NAV.open('paint');
   }};
 })();
 document.getElementById('paintOpen').onclick = () => PAINT.open();
@@ -1758,7 +1783,7 @@ const ZUKAN = (() => {
   const root = document.getElementById('zukan'), grid = document.getElementById('zGrid'), info = document.getElementById('zInfo');
   let urls = [];
   async function open() {
-    root.hidden = false; urls.forEach(URL.revokeObjectURL); urls = []; grid.innerHTML = '';
+    NAV.open('zukan'); urls.forEach(URL.revokeObjectURL); urls = []; grid.innerHTML = '';
     const list = await all();
     if (!list) { info.textContent = 'このブラウザでは ずかん を使えません（シークレットモードなど）。'; return; }
     info.textContent = list.length ? `${list.length}まい ・ タップすると水槽で泳ぎます` : 'まだ絵がありません。絵を入れたり、ぬりえをすると、ここにたまっていきます。';
@@ -1773,8 +1798,8 @@ const ZUKAN = (() => {
       pick.onclick = async () => {
         const img = new Image(); img.src = url; await img.decode();
         addCreature(toCanvas(img), r.name || 'ずかん', {scale: .24, user: true, mode: r.mode, at: {x: W / 2, y: H * .45}});
-        creatures[creatures.length - 1].zid = r.id; SND.add(); close();
-        document.getElementById('tray').classList.add('hide'); document.getElementById('showTray').hidden = false;
+        creatures[creatures.length - 1].zid = r.id; SND.add();
+        NAV.close('zukan', () => NAV.close('tray'));
       };
       sv.onclick = async () => { const img = new Image(); img.src = url; await img.decode(); saveImage(toCanvas(img)); };
       rm.onclick = async () => { await del(r.id); card.remove(); const n = grid.children.length; info.textContent = n ? `${n}まい ・ タップすると水槽で泳ぎます` : 'まだ絵がありません。'; };
@@ -1782,7 +1807,7 @@ const ZUKAN = (() => {
       card.append(pick, bar); grid.append(card);
     }
   }
-  function close() { root.hidden = true; }
+  function close() { NAV.close('zukan'); }
   document.getElementById('zClose').onclick = close;
   document.getElementById('zukanOpen').onclick = open;
   return {add, update};

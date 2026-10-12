@@ -538,6 +538,7 @@ const SND = (() => {
         case 'swans':    tone('sine', [800, 600], 0, .15, .12); tone('sine', [800, 600], .2, .15, .12); [84, 88, 91, 96].forEach((m, i) => tone('sine', hz(m), .45 + i * .1, .6, .08)); break;
         case 'dragon':   tone('sawtooth', [200, 320], 0, .45, .06, sfxBus, .05); tone('sine', [300, 520], 0, .45, .2); [91, 96, 100].forEach((m, i) => tone('sine', hz(m), .5 + i * .08, .5, .08)); break;
         case 'prince':   [72, 76, 79, 77, 74, 72].forEach((m, i) => tone('triangle', hz(m), i * .26, .4, .13)); break;
+        case 'aladdin':  [72, 73, 76, 77, 79, 80, 83, 84, 88].forEach((m, i) => tone('triangle', hz(m), i * .07, .5, .1)); noise(.6, .8, .25, 2000, 5000, .7); break;
         case 'frog':     noise(0, .35, .45, 1500, 500, .8); tone('square', [320, 220], .4, .08, .1); tone('square', [320, 220], .55, .08, .1); break;
         case 'majo':     noise(0, 1, .3, 1500, 6000, .7); [84, 88, 91, 96, 100, 103, 108].forEach((m, i) => tone('sine', hz(m), .2 + i * .07, .6, .07)); break;
         case 'butterflies': [100, 103, 107, 112].forEach((m, i) => tone('sine', hz(m), i * .1, .5, .06)); break;
@@ -753,7 +754,7 @@ function spawnVisitor(kind) {
 function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
-  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'frog', 'mice', 'majo', 'fairy', 'swans', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio']).filter(k => k !== lastKind);
+  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'aladdin', 'mice', 'majo', 'fairy', 'swans', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio']).filter(k => k !== lastKind);
   lastKind = FORCE && clock < 5 ? FORCE : kinds[Math.floor(Math.random() * kinds.length)];
   spawnVisitor(lastKind); SND.arrive();
 }
@@ -1916,6 +1917,42 @@ const PAINT = (() => {
       t.dot(270, 200, 11); t.dot(330, 200, 11);
       for (const k of [-1, 1]) t.line(p => p.arc(300 + k * 52, 228, 12, 0, Math.PI * 2));
       t.line(p => { p.moveTo(285, 240); p.quadraticCurveTo(300, 254, 315, 240); });
+    }},
+    {name: 'ながいかみの ひめ', world: 'princess', mode: 'swim', draw(t) {
+      t.part(p => { p.moveTo(200, 195); p.arc(300, 195, 100, Math.PI, 0); p.quadraticCurveTo(430, 380, 485, 535); p.quadraticCurveTo(430, 572, 385, 545); p.lineTo(215, 545); p.quadraticCurveTo(170, 572, 115, 535); p.quadraticCurveTo(170, 380, 200, 195); p.closePath(); });
+      for (const k of [-1, 1]) t.part(p => { p.moveTo(300 + k * 42, 295); p.lineTo(300 + k * 102, 428); p.lineTo(300 + k * 66, 446); p.lineTo(300 + k * 28, 335); p.closePath(); });
+      for (const k of [-1, 1]) t.part(p => p.arc(300 + k * 86, 450, 15, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(258, 290); p.lineTo(342, 290); p.lineTo(400, 545); p.quadraticCurveTo(300, 565, 200, 545); p.closePath(); });
+      t.line(p => { p.moveTo(268, 365); p.quadraticCurveTo(300, 380, 332, 365); });
+      for (const [x, y] of [[245, 505], [300, 520], [355, 505], [300, 440]]) t.line(p => { for (let k = 0; k < 5; k++) { const a = k * Math.PI * 2 / 5; p.moveTo(x + Math.cos(a) * 14 + 7, y + Math.sin(a) * 14); p.arc(x + Math.cos(a) * 14, y + Math.sin(a) * 14, 7, 0, Math.PI * 2); } });
+      t.part(p => { p.moveTo(287, 262); p.lineTo(313, 262); p.lineTo(313, 292); p.lineTo(287, 292); p.closePath(); });
+      t.part(p => p.arc(300, 200, 78, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(222, 192); p.quadraticCurveTo(228, 118, 300, 112); p.quadraticCurveTo(380, 116, 380, 196); p.quadraticCurveTo(350, 150, 290, 152); p.quadraticCurveTo(250, 160, 222, 192); p.closePath(); });
+      for (let k = 0; k < 7; k++) { const a = -2.5 + k * (1.85 / 6); t.part(p => p.arc(300 + Math.cos(a) * 100, 195 + Math.sin(a) * 100, 15, 0, Math.PI * 2)); }
+      t.dot(272, 208, 10); t.dot(328, 208, 10);
+      for (const k of [-1, 1]) t.line(p => p.arc(300 + k * 50, 234, 11, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(286, 244); p.quadraticCurveTo(300, 257, 314, 244); });
+    }},
+    {name: 'おだんごの ひめ', world: 'princess', mode: 'hop', draw(t) {
+      const tier = (top, bot, wt, wb) => t.part(p => { p.moveTo(300 - wt, top); p.lineTo(300 + wt, top); p.lineTo(300 + wb, bot); const n = 6, step = wb * 2 / n; for (let k = 0; k < n; k++) { const x = 300 + wb - k * step; p.quadraticCurveTo(x - step / 2, bot + 22, x - step, bot); } p.closePath(); });
+      tier(470, 545, 130, 180); tier(415, 495, 95, 140); tier(365, 445, 45, 95);
+      for (const k of [-1, 1]) t.part(p => { p.moveTo(300 + k * 66, 310); p.lineTo(300 + k * 62, 392); p.lineTo(300 + k * 42, 392); p.lineTo(300 + k * 46, 318); p.closePath(); });
+      t.part(p => { p.moveTo(262, 290); p.lineTo(338, 290); p.lineTo(345, 368); p.lineTo(255, 368); p.closePath(); });
+      for (const k of [-1, 1]) t.part(p => p.ellipse(300 + k * 58, 300, 30, 22, 0, 0, Math.PI * 2));
+      for (const k of [-1, 1]) t.part(p => p.arc(300 + k * 46, 398, 13, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(300, 330); p.lineTo(272, 314); p.lineTo(272, 346); p.closePath(); p.moveTo(300, 330); p.lineTo(328, 314); p.lineTo(328, 346); p.closePath(); });
+      t.part(p => { p.moveTo(288, 262); p.lineTo(312, 262); p.lineTo(312, 292); p.lineTo(288, 292); p.closePath(); });
+      t.part(p => p.arc(300, 82, 46, 0, Math.PI * 2));
+      t.part(p => p.arc(300, 195, 94, 0, Math.PI * 2));
+      t.part(p => p.arc(300, 200, 80, 0, Math.PI * 2));
+      t.part(p => { p.arc(300, 195, 94, Math.PI + .42, -.42); p.closePath(); });
+      t.part(p => { p.moveTo(248, 128); p.lineTo(256, 95); p.lineTo(276, 118); p.lineTo(300, 82); p.lineTo(324, 118); p.lineTo(344, 95); p.lineTo(352, 128); p.quadraticCurveTo(300, 116, 248, 128); p.closePath(); });
+      t.line(p => { p.moveTo(275, 262); p.quadraticCurveTo(300, 285, 325, 262); });
+      t.line(p => p.arc(300, 286, 8, 0, Math.PI * 2));
+      t.dot(272, 210, 10); t.dot(328, 210, 10);
+      for (const k of [-1, 1]) t.line(p => p.arc(300 + k * 50, 236, 11, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(286, 246); p.quadraticCurveTo(300, 259, 314, 246); });
+      for (const [x, y] of [[240, 515], [300, 520], [360, 515], [270, 465], [330, 465], [300, 410]]) t.line(p => { p.moveTo(x, y - 9); p.lineTo(x + 9, y); p.lineTo(x, y + 9); p.lineTo(x - 9, y); p.closePath(); });
     }},
     {name: 'ティアラ', world: 'princess', mode: 'float', draw(t) {
       t.part(p => { p.moveTo(100, 390); for (const [x, y] of [[90, 255], [175, 320], [215, 195], [268, 290], [300, 165], [332, 290], [385, 195], [425, 320], [510, 255], [500, 390]]) p.lineTo(x, y); p.quadraticCurveTo(300, 430, 100, 390); p.closePath(); });
@@ -3536,6 +3573,48 @@ function drawFrog(x, s) { // sitting, feet at (0, 0), with a little crown
   x.fillStyle = 'rgba(255,130,160,.5)'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .27, -s * .4, s * .045, 0, 7); x.fill(); }
   x.save(); x.translate(0, -s * .66); drawMiniCrown(x, s * .2); x.restore();
 }
+function drawLamp(x, r) { // a golden magic lamp, centred
+  x.fillStyle = '#ffd84a'; x.strokeStyle = '#b8860b'; x.lineWidth = Math.max(1.5, r * .08); x.lineJoin = x.lineCap = 'round';
+  x.beginPath(); x.moveTo(r * .4, -r * .05); x.quadraticCurveTo(r * .9, -r * .1, r * 1.2, -r * .45); x.lineTo(r * 1.25, -r * .35); x.quadraticCurveTo(r * .95, r * .2, r * .3, r * .25); x.closePath(); x.fill(); x.stroke();
+  x.beginPath(); x.arc(-r * .55, 0, r * .3, Math.PI * .5, Math.PI * 1.5, false); x.stroke();
+  x.beginPath(); x.ellipse(0, 0, r * .6, r * .32, 0, 0, 7); x.fill(); x.stroke();
+  x.beginPath(); x.ellipse(0, -r * .3, r * .28, r * .1, 0, 0, 7); x.fill(); x.stroke();
+  x.beginPath(); x.arc(0, -r * .45, r * .1, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#ff5a9a'; x.beginPath(); x.arc(0, r * .02, r * .08, 0, 7); x.fill();
+}
+function drawAladdin(x, s, t = 0) { // a boy sitting cross-legged on a flying carpet; centre of the carpet at (0, 0)
+  const lw = Math.max(2, s * .016); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
+  const wave = k => Math.sin(t * 5 - k * 4) * s * .03;
+  // boy
+  x.fillStyle = '#ffd45a'; x.strokeStyle = '#b8860b'; // baggy trousers, legs crossed
+  x.beginPath(); x.ellipse(0, -s * .1, s * .2, s * .07, 0, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#ffffff'; x.strokeStyle = '#9aa0b8'; x.beginPath(); x.moveTo(-s * .08, -s * .38); x.lineTo(s * .08, -s * .38); x.lineTo(s * .1, -s * .15); x.lineTo(-s * .1, -s * .15); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#3aa876'; x.strokeStyle = '#1f6a48'; // vest
+  for (const k of [-1, 1]) { x.beginPath(); x.moveTo(k * s * .085, -s * .38); x.lineTo(k * s * .03, -s * .38); x.lineTo(k * s * .05, -s * .15); x.lineTo(k * s * .105, -s * .15); x.closePath(); x.fill(); x.stroke(); }
+  x.fillStyle = '#e04a5a'; x.fillRect(-s * .1, -s * .18, s * .2, s * .035); // sash
+  x.strokeStyle = '#f2c79a'; x.lineWidth = s * .04; x.beginPath(); x.moveTo(s * .06, -s * .33); x.lineTo(s * .16, -s * .24); x.lineTo(s * .22, -s * .3); x.stroke(); x.lineWidth = lw; // arm holding the lamp up
+  x.save(); x.translate(s * .27, -s * .33); drawLamp(x, s * .09); x.restore();
+  x.fillStyle = '#f2c79a'; x.strokeStyle = '#b8865a'; x.beginPath(); x.arc(0, -s * .47, s * .1, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#3a2416'; x.beginPath(); x.moveTo(-s * .1, -s * .47); x.quadraticCurveTo(-s * .12, -s * .55, -s * .06, -s * .55); x.lineTo(-s * .05, -s * .49); x.closePath(); x.fill(); // hair at the side
+  x.fillStyle = '#fff7e6'; x.strokeStyle = '#c9a66b'; // turban with a jewel and a feather
+  x.beginPath(); x.ellipse(s * .005, -s * .56, s * .11, s * .065, 0, 0, 7); x.fill(); x.stroke();
+  x.beginPath(); x.arc(s * .005, -s * .6, s * .075, Math.PI, 0); x.fill(); x.stroke();
+  x.strokeStyle = '#7fd0ff'; x.lineWidth = lw * 1.4; x.beginPath(); x.moveTo(-s * .02, -s * .62); x.quadraticCurveTo(-s * .06, -s * .72, -s * .12, -s * .74); x.stroke(); x.lineWidth = lw;
+  x.fillStyle = '#5ab0ff'; x.beginPath(); x.arc(s * .01, -s * .57, s * .02, 0, 7); x.fill();
+  x.fillStyle = '#2a1a10'; for (const ex of [.0, .055]) { x.beginPath(); x.ellipse(ex * s + s * .015, -s * .47, s * .01, s * .015, 0, 0, 7); x.fill(); }
+  x.fillStyle = 'rgba(255,120,120,.4)'; x.beginPath(); x.arc(s * .085, -s * .44, s * .015, 0, 7); x.fill();
+  x.strokeStyle = '#8a3a2a'; x.lineWidth = Math.max(1.5, s * .009); x.beginPath(); x.arc(s * .04, -s * .44, s * .02, .3, Math.PI - .3); x.stroke();
+  // carpet (drawn last so it sits in front of the legs)
+  x.lineWidth = lw; const L = s * .55, T = s * .06, N = 12;
+  x.fillStyle = '#d63a5a'; x.strokeStyle = '#7a1a30'; x.beginPath();
+  for (let i = 0; i <= N; i++) { const u = i / N, px = -L + u * 2 * L; x.lineTo(px, -T + wave(u)); }
+  for (let i = N; i >= 0; i--) { const u = i / N, px = -L + u * 2 * L; x.lineTo(px, T + wave(u)); }
+  x.closePath(); x.fill(); x.stroke();
+  x.strokeStyle = '#ffd84a'; x.lineWidth = lw * .9; x.beginPath();
+  for (let i = 0; i <= N; i++) { const u = i / N; x.lineTo(-L * .92 + u * 1.84 * L, wave(u)); } x.stroke();
+  x.fillStyle = '#ffd84a'; for (let i = 1; i < N; i += 2) { const u = i / N; x.beginPath(); x.arc(-L + u * 2 * L, wave(u), s * .012, 0, 7); x.fill(); }
+  x.strokeStyle = '#ffd84a'; x.lineWidth = lw; for (const [u, k] of [[0, -1], [0, 1], [1, -1], [1, 1]]) { const px = -L + u * 2 * L, py = k * T + wave(u); x.beginPath(); x.moveTo(px, py); x.lineTo(px + (u ? 1 : -1) * s * .05, py + k * s * .02); x.stroke(); }
+}
 function drawMajo(x, s, t = 0, wave = 0) { // a kind fairy grandmother in a starry cloak; hem at (0, 0)
   const lw = Math.max(2, s * .016); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
   x.fillStyle = '#7fa8f0'; x.strokeStyle = '#3a5aa8';
@@ -3608,6 +3687,7 @@ function spawnPrincess(kind) {
   if (kind === 'carriage') add({s: m * .3, x: from(m * .55), y: G});
   else if (kind === 'unicorn') add({s: m * .3, x: from(m * .3), y: G});
   else if (kind === 'prince') add({s: m * .34, x: from(m * .15), y: G});
+  else if (kind === 'aladdin') add({s: m * .3, x: from(m * .4), y: H * (.22 + Math.random() * .12)});
   else if (kind === 'frog') add({s: m * .13, x: from(m * .1), y: G});
   else if (kind === 'mice') add({s: m * .14, x: from(m * .12), y: G});
   else if (kind === 'majo') add({s: m * .32, x: from(m * .2), y: G - m * .04});
@@ -3644,6 +3724,16 @@ function drawPrincessVisitor(v, dt, P) {
       if (!act) { v.x += v.dir * 50 * dt; v.step += dt * 6; }
       ctx.translate(v.x, G); ctx.scale(v.dir, 1); drawPrince(ctx, s, v.step, ease);
       return !gone(s * .3);
+    case 'aladdin': { // on a flying carpet; tap -> a loop-the-loop and the lamp puffs out stars
+      v.x += v.dir * (act ? 40 : 85) * dt; v.y += Math.sin(v.t * 1.3) * 16 * dt;
+      let ox = 0, oy = 0, rot = Math.sin(v.t * 2) * .05;
+      if (act) { const a = Math.min(1, P * 1.4) * Math.PI * 2, R = s * .5; ox = Math.sin(a) * R * v.dir; oy = (1 - Math.cos(a)) * R; rot = a; } // a loop dipping down and around
+      v.hx = v.x + ox; v.hy = v.y + oy;
+      if (Math.random() < .3) fx.push({k: 'spark', x: v.hx - v.dir * s * .5, y: v.hy + s * .05, vx: -v.dir * 30, vy: 15, a: .7, s: s * .04});
+      if (act && P > .7 && Math.random() < .6) fx.push({k: 'spark', x: v.hx + v.dir * s * .3, y: v.hy - s * .35, vx: (Math.random() - .5) * 300, vy: -100 - Math.random() * 200, a: 1.2, s: s * .06});
+      ctx.translate(v.hx, v.hy); ctx.scale(v.dir, 1); ctx.rotate(rot); drawAladdin(ctx, s, v.t);
+      return !gone(s * .7);
+    }
     case 'frog': {
       v.hopT = (v.hopT || 0) + dt; let hy = 0;
       if (act) hy = Math.sin(P * Math.PI) * s * 3;
@@ -3715,6 +3805,7 @@ function tapPrincess(px, py) {
         for (let k = 0; k < 6; k++) fx.push({k: 'note', x: v.x + (Math.random() - .5) * s, y: G - s * (.6 + Math.random() * .5), vx: (Math.random() - .5) * 80, vy: -50, a: 1.3, s: s * .06, ph: Math.random() * 6, c: Math.floor(Math.random() * 5), two: Math.random() < .4});
         return true;
       } break;
+      case 'aladdin': if (inBox(v.hx ?? v.x, (v.hy ?? v.y) - s * .2, s * 1.1, s * .7) && start(v, 2.6, 'まほうの じゅうたん〜！', v.hx ?? v.x, (v.hy ?? v.y) - s * .8)) { fx.push({k: 'puff', x: v.x + v.dir * s * .35, y: v.y - s * .4, vx: 0, vy: -20, a: 1, s: s * .3}); for (const c of creatures) burst('spark', c.x, c.y - c.h * .4, 6, c.w * .06, 120); return true; } break;
       case 'frog': if (inBox(v.x, G - s * .4, s, s, 30) && start(v, 1.4, 'ポンッ！ ケロ〜ン♪', v.x, G - s * 2)) { fx.push({k: 'puff', x: v.x, y: G - s * .4, vx: 0, vy: 0, a: 1, s: s * .9}); burst('heart', v.x, G - s, 5, s * .15, 120); return true; } break;
       case 'mice': { const mid = v.x - v.dir * s * 1.1; if (inBox(mid, G - s * .5, s * 3.4, s * 1.1) && start(v, 2.4, 'パンパカパーン♪', mid, G - s * 1.7)) return true; break; }
       case 'majo': if (inBox(v.x, v.y - s * .45, s * .6, s, 25) && start(v, 2.2, 'ちちんぷいぷい〜！', v.x, v.y - s * 1.2)) { for (const c of creatures) { c.crown = 12; burst('spark', c.x, c.y - c.h * .6, 5, c.w * .06, 80); } return true; } break;

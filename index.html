@@ -96,6 +96,19 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 .colors button.on { border-color: #fff; box-shadow: 0 0 0 3px var(--accent); }
 .drop-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .drop-row .drop { min-width: 0; }
+.side { display: grid; gap: 8px; }
+.side .paint-open { padding: 6px 12px; font-size: 14px; }
+.zukan { grid-template-rows: auto auto 1fr; }
+.zgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; overflow-y: auto; align-content: start; padding-bottom: 8px; }
+.zcard { background: rgba(255,255,255,.06); border: 1px solid var(--panel-line); border-radius: 14px; padding: 6px; display: grid; gap: 4px; }
+.zpick { padding: 0; border: 0; border-radius: 10px; background: linear-gradient(#1580a0, #0b4d6c); aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; }
+.zpick img { max-width: 88%; max-height: 88%; object-fit: contain; }
+.zbar { display: flex; align-items: center; gap: 4px; }
+.zbar small { flex: 1; font-size: 11px; color: var(--ink-soft); }
+.zbar button { padding: 3px 8px; font-size: 12px; }
+.zbar button.del { color: var(--danger); }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 30; background: var(--accent); color: #2b2000; font-weight: 700; padding: 10px 18px; border-radius: 999px; }
+.toast[hidden] { display: none; }
 .paint-open { font-family: var(--font-display); font-weight: 500; font-size: 15px; border-radius: 14px; padding: 10px 14px; border: 2px dashed var(--panel-line); color: var(--accent); background: transparent; }
 @media (max-width: 480px) { .colors button { width: 32px; height: 32px; } .tpl canvas { width: 46px; height: 46px; } .tpl { gap: 6px; } }
 
@@ -114,7 +127,10 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
     <span>ここをタップ、または画像をドラッグ（複数OK）</span>
     <input type="file" id="file" accept="image/*" multiple class="picker" aria-label="絵を入れる">
   </label>
-  <button class="paint-open" id="paintOpen">🎨<br>ぬりえ</button>
+  <div class="side">
+    <button class="paint-open" id="paintOpen">🎨 ぬりえ</button>
+    <button class="paint-open" id="zukanOpen">📖 ずかん</button>
+  </div>
   </div>  <div class="row">
     <label for="tol">紙の白を消す強さ</label>
     <input type="range" id="tol" min="10" max="120" value="55">
@@ -128,6 +144,12 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
   </div>
 </section>
 <button class="show-btn" id="showTray" hidden>パネル</button>
+<section class="paint zukan" id="zukan" hidden aria-label="ずかん">
+  <div class="paint-head"><h2>📖 ずかん</h2><button id="zClose" aria-label="とじる">✕</button></div>
+  <p id="zInfo" style="margin:0;font-size:13px;color:var(--ink-soft)"></p>
+  <div class="zgrid" id="zGrid"></div>
+</section>
+<div class="toast" id="toast" hidden></div>
 <section class="paint" id="paint" hidden aria-label="ぬりえ">
   <div class="paint-head">
     <h2>🎨 ぬりえ</h2>
@@ -142,6 +164,7 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
     <button id="tPen">✏️ ペン</button>
     <button id="tErase">🧽 けす</button>
     <button id="pUndo">↩ もどす</button>
+    <button id="pSave">💾 保存</button>
     <button id="pGo" class="primary">🐟 泳がせる！</button>
   </div>
 </section>
@@ -1302,6 +1325,7 @@ function loadFiles(files) {
     im.onload = () => {
       const cut = cutOut(im, +tol.value);
       addCreature(cut, f.name.replace(/\.[^.]+$/, ''), {scale: .24, at, user: true}); SND.add();
+      ZUKAN.add(creatures[creatures.length - 1]);
       originals.set(uid, im);
     };
     im.src = url;
@@ -1363,7 +1387,8 @@ function renderList() {
     bg.onclick = () => { const prev = sizes[si]; si = (si + 1) % 3; const k = sizes[si] / prev; c.w *= k; c.h *= k; bg.textContent = ['大','小','中'][si]; };
     const del = document.createElement('button'); del.className = 'del'; del.textContent = '×'; del.title = 'この絵を外す';
     del.onclick = () => { creatures.splice(creatures.indexOf(c), 1); originals.delete(c.id); renderList(); };
-    row.append(im, nm, md, fl, bg, del); list.append(row);
+    const sv = document.createElement('button'); sv.textContent = '💾'; sv.title = 'この絵をスマホに保存'; sv.onclick = () => saveImage(toCanvas(c.img));
+    row.append(im, nm, md, fl, bg, sv, del); list.append(row);
   }
   count.textContent = `${creatures.length}ひき`;
   updateLife();
@@ -1379,7 +1404,7 @@ setInterval(updateLife, 1000);
 tol.addEventListener('change', () => {
   for (const c of creatures) {
     const src = originals.get(c.id); if (!src) continue;
-    const k = c.w / c.img.width; c.img = cutOut(src, +tol.value);
+    const k = c.w / c.img.width; c.img = cutOut(src, +tol.value); ZUKAN.update(c);
     const base = Math.max(c.w, c.h), ar = c.img.width / c.img.height;
     c.w = ar >= 1 ? base : base * ar; c.h = ar >= 1 ? base / ar : base;
   }
@@ -1558,9 +1583,11 @@ const PAINT = (() => {
   for (const k in tb) document.getElementById(tb[k]).onclick = () => setTool(k);
   document.getElementById('pUndo').onclick = () => { const u = undo.pop(); if (u) xC.putImageData(u, 0, 0); };
   document.getElementById('pClose').onclick = () => { root.hidden = true; };
+  document.getElementById('pSave').onclick = () => saveImage(result());
   document.getElementById('pGo').onclick = () => {
     const t = TPL[cur];
     addCreature(result(), 'ぬりえ：' + t.name, {scale: .26, user: true, mode: t.mode, at: {x: W / 2, y: H * .45}});
+    ZUKAN.add(creatures[creatures.length - 1]);
     SND.add(); root.hidden = true; load(cur);
     document.getElementById('tray').classList.add('hide'); document.getElementById('showTray').hidden = false;
   };
@@ -1575,6 +1602,84 @@ const PAINT = (() => {
   return {open() { root.hidden = false; }};
 })();
 document.getElementById('paintOpen').onclick = () => PAINT.open();
+
+/* ---------- saving ----------
+   saveImage: share sheet on phones ("画像を保存"), otherwise a normal download.
+   ZUKAN: every drawing you add is kept in this browser (IndexedDB) so it can be brought back later. */
+function toast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.tm); toast.tm = setTimeout(() => { t.hidden = true; }, 2200);
+}
+function stamp() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
+async function saveImage(cv) {
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png')); if (!blob) return;
+  const file = new File([blob], `suisui-${stamp()}.png`, {type: 'image/png'});
+  if (navigator.canShare && navigator.canShare({files: [file]})) {
+    try { await navigator.share({files: [file], title: 'すいすいスケッチ'}); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('画像を保存しました');
+}
+const toCanvas = img => { if (img.getContext) return img; const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; c.getContext('2d').drawImage(img, 0, 0); return c; };
+
+const ZUKAN = (() => {
+  const MAX = 300;
+  let dbp = null;
+  const db = () => dbp || (dbp = new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('no indexedDB'));
+    const r = indexedDB.open('suisui-sketch', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('drawings', {keyPath: 'id', autoIncrement: true});
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  const store = async (mode) => (await db()).transaction('drawings', mode).objectStore('drawings');
+  const req = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const blobOf = cv => new Promise(r => toCanvas(cv).toBlob(r, 'image/png'));
+  async function all() { try { return (await req((await store('readonly')).getAll())).sort((a, b) => b.created - a.created); } catch (_) { return null; } }
+  async function add(c) { // remember a creature that was just put in the tank
+    try {
+      const blob = await blobOf(c.img);
+      c.zid = await req((await store('readwrite')).add({created: Date.now(), name: c.name, mode: c.mode, blob}));
+      const list = await all(); if (list && list.length > MAX) { const s = await store('readwrite'); for (const r of list.slice(MAX)) s.delete(r.id); }
+    } catch (_) { /* private mode etc.: just don't keep it */ }
+  }
+  async function update(c) { if (!c.zid) return; try { const s = await store('readwrite'); const r = await req(s.get(c.zid)); if (r) { r.blob = await blobOf(c.img); (await store('readwrite')).put(r); } } catch (_) {} }
+  async function del(id) { try { await req((await store('readwrite')).delete(id)); } catch (_) {} }
+
+  // the ずかん screen
+  const root = document.getElementById('zukan'), grid = document.getElementById('zGrid'), info = document.getElementById('zInfo');
+  let urls = [];
+  async function open() {
+    root.hidden = false; urls.forEach(URL.revokeObjectURL); urls = []; grid.innerHTML = '';
+    const list = await all();
+    if (!list) { info.textContent = 'このブラウザでは ずかん を使えません（シークレットモードなど）。'; return; }
+    info.textContent = list.length ? `${list.length}まい ・ タップすると水槽で泳ぎます` : 'まだ絵がありません。絵を入れたり、ぬりえをすると、ここにたまっていきます。';
+    for (const r of list) {
+      const url = URL.createObjectURL(r.blob); urls.push(url);
+      const card = document.createElement('div'); card.className = 'zcard';
+      const pick = document.createElement('button'); pick.className = 'zpick'; pick.setAttribute('aria-label', 'この絵を泳がせる');
+      const im = new Image(); im.src = url; im.alt = ''; pick.append(im);
+      const d = new Date(r.created), when = document.createElement('small'); when.textContent = `${d.getMonth() + 1}/${d.getDate()}`;
+      const sv = document.createElement('button'); sv.textContent = '💾'; sv.title = 'スマホに保存';
+      const rm = document.createElement('button'); rm.textContent = '✕'; rm.className = 'del'; rm.title = 'ずかんから消す';
+      pick.onclick = async () => {
+        const img = new Image(); img.src = url; await img.decode();
+        addCreature(toCanvas(img), r.name || 'ずかん', {scale: .24, user: true, mode: r.mode, at: {x: W / 2, y: H * .45}});
+        creatures[creatures.length - 1].zid = r.id; SND.add(); close();
+        document.getElementById('tray').classList.add('hide'); document.getElementById('showTray').hidden = false;
+      };
+      sv.onclick = async () => { const img = new Image(); img.src = url; await img.decode(); saveImage(toCanvas(img)); };
+      rm.onclick = async () => { await del(r.id); card.remove(); const n = grid.children.length; info.textContent = n ? `${n}まい ・ タップすると水槽で泳ぎます` : 'まだ絵がありません。'; };
+      const bar = document.createElement('div'); bar.className = 'zbar'; bar.append(when, sv, rm);
+      card.append(pick, bar); grid.append(card);
+    }
+  }
+  function close() { root.hidden = true; }
+  document.getElementById('zClose').onclick = close;
+  document.getElementById('zukanOpen').onclick = open;
+  return {add, update};
+})();
 
 resize();
 samples.forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));

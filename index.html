@@ -2180,11 +2180,18 @@ const dinoSamples = [
 ];
 
 /* ---------- switching worlds ---------- */
+const parked = {sea: [], dino: []}; // drawings of the world that is not on screen
 function setWorld(w) {
   WORLD = w; try { localStorage.setItem('suisui-world', w); } catch (_) {}
   visitors.length = 0; shark = null; erupt = null; lava.length = 0; bubbles.length = 0; fx.length = 0;
   nextVisit = clock + 6;
-  for (let i = creatures.length - 1; i >= 0; i--) { const c = creatures[i]; if (!c.user) creatures.splice(i, 1); else { c.fear = false; c.launch = null; } }
+  // each world keeps its own drawings: put this world's away (their 3-minute timer pauses) and bring the other's back
+  const leaving = creatures.filter(c => c.user);
+  for (const c of leaving) { c.fear = false; c.launch = null; c.awayAt = clock; }
+  const back = parked[w] || [];
+  for (const c of back) { c.born += clock - c.awayAt; c.fear = false; c.launch = null; }
+  parked[w === 'dino' ? 'sea' : 'dino'] = leaving; parked[w] = [];
+  creatures.length = 0; creatures.push(...back);
   (w === 'dino' ? dinoSamples : samples).forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));
   buildScenery(); renderList(); showWorld();
 }

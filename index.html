@@ -124,7 +124,7 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 
 <section class="tray" id="tray">
   <h1>すいすいスケッチ</h1>
-  <p>スキャンした絵や写真を入れると、白い紙の部分を消して水槽で泳ぎます。お魚をタッチするとジャンプして逃げます。水をタッチすると近くのお魚が見に来ます。30秒ごとにお客さん（マンボウ、カニ、マンタなど）が通りかかります。入れた絵は3分たつとサメが食べに来ます。</p>
+  <p id="desc">スキャンした絵や写真を入れると、白い紙の部分を消して水槽で泳ぎます。お魚をタッチするとジャンプして逃げます。水をタッチすると近くのお魚が見に来ます。30秒ごとにお客さん（マンボウ、カニ、マンタなど）が通りかかります。入れた絵は3分たつとサメが食べに来ます。</p>
   <div class="drop-row">
   <label class="drop" id="drop" tabindex="0">
     <strong>絵を入れる</strong>
@@ -142,6 +142,7 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
   <div class="list" id="list"></div>
   <div class="row">
     <button class="primary" id="fs">全画面で表示</button>
+    <button id="worldBtn">🦖 きょうりゅうへ</button>
     <button id="hideTray">パネルを隠す</button>
     <button id="snd" aria-pressed="true">🔊 音あり</button>
     <span class="count" id="count"></span>
@@ -179,6 +180,8 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 const cv = document.getElementById('tank'), ctx = cv.getContext('2d');
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let W = 0, H = 0, DPR = 1;
+let WORLD = 'sea'; try { if (localStorage.getItem('suisui-world') === 'dino') WORLD = 'dino'; } catch (_) {}
+const GROUND = () => H * .86; // ground line in the dinosaur world
 function resize() {
   DPR = Math.min(devicePixelRatio || 1, 2);
   W = innerWidth; H = innerHeight;
@@ -200,9 +203,11 @@ function buildScenery() {
   rocks = Array.from({length: Math.round(n * .8)}, () => ({
     x: Math.random() * W, r: 14 + Math.random() * 30, s: 30 + Math.random() * 20
   }));
+  dinoScene = null; // rebuilt for the new size on the next frame
 }
 const bubbles = [];
 function drawBackground(t) {
+  if (WORLD === 'dino') return drawDinoBackground(t);
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#1580a0'); g.addColorStop(.45, '#0b4d6c'); g.addColorStop(1, '#06243b');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -239,10 +244,12 @@ function drawBackground(t) {
   }
 }
 function drawBubbles(dt) {
-  if (!reduce && Math.random() < .08) bubbles.push({x: Math.random() * W, y: H, r: 2 + Math.random() * 6, v: 25 + Math.random() * 40, ph: Math.random() * 6});
+  const dino = WORLD === 'dino'; // on land the "bubbles" are little puffs of dust that fade
+  if (!dino && !reduce && Math.random() < .08) bubbles.push({x: Math.random() * W, y: H, r: 2 + Math.random() * 6, v: 25 + Math.random() * 40, ph: Math.random() * 6});
   ctx.strokeStyle = 'rgba(220,250,255,.55)'; ctx.lineWidth = 1.5;
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const b = bubbles[i]; b.y -= b.v * dt; b.ph += dt * 3;
+    if (dino) { b.life = (b.life || 1) - dt * 1.2; if (b.life <= 0) { bubbles.splice(i, 1); continue; } ctx.fillStyle = `rgba(250,240,215,${b.life * .7})`; ctx.beginPath(); ctx.arc(b.x + Math.sin(b.ph) * 4, b.y, b.r * (2 - b.life), 0, 7); ctx.fill(); continue; }
     ctx.beginPath(); ctx.arc(b.x + Math.sin(b.ph) * 4, b.y, b.r, 0, 7); ctx.stroke();
     if (b.y < -10) bubbles.splice(i, 1);
   }
@@ -256,6 +263,8 @@ const VISIT_EVERY = 30;    // a visitor passes through every 30 seconds
 const FIRST_VISIT = 10;
 const FAST = Math.max(1, +new URLSearchParams(location.search).get('fast') || 1); // ?fast=30 to try the timers quickly
 const MODES = [['swim', '泳ぐ'], ['float', 'ふわふわ'], ['hop', 'はねる']];
+const MODE_NAMES = {sea: {swim: '泳ぐ', float: 'ふわふわ', hop: 'はねる'}, dino: {swim: 'あるく', float: 'とぶ', hop: 'はねる'}};
+const modeName = m => MODE_NAMES[WORLD][m];
 function addCreature(img, name, opts = {}) {
   const base = Math.min(W, H) * (opts.scale || .2);
   const ar = img.width / img.height;
@@ -276,9 +285,10 @@ function addCreature(img, name, opts = {}) {
   creatures.push(c); renderList();
 }
 function update(c, dt, t) {
-  const floor = H * .9, top = H * .08;
+  const floor = WORLD === 'dino' ? GROUND() : H * .9, top = H * .08;
   c.ph += dt;
   if (c.jump > 0) c.jump = Math.max(0, c.jump - dt * 1.6);
+  if (c.launch) return; // flying off after the eruption (moved in the loop)
   if (c.fear) { // the shark is coming: freeze and tremble
     c.x += Math.sin(c.ph * 60) * 1.2; c.vx = Math.sign(c.vx) * 10; c.vy = 0;
     c.dir += ((Math.sign(c.vx) || 1) - c.dir) * Math.min(1, dt * 5);
@@ -297,6 +307,7 @@ function update(c, dt, t) {
       if (c.mode !== 'hop') c.vy += (dy / d * 140 - c.vy) * Math.min(1, dt * 3);
     }
   }
+  if (WORLD === 'dino' && c.mode !== 'hop') { updateDinoMove(c, dt, sp, tg); return; }
   if (c.mode === 'swim') {
     if (!tg && Math.random() < dt * .25) c.vy = (Math.random() - .5) * 60;
     if (!tg && !c.boost && Math.random() < dt * .08) c.vx *= -1;
@@ -322,9 +333,12 @@ function draw(c, t) {
   const wob = reduce ? 0 : Math.sin(c.ph * (c.mode === 'swim' ? 7 : 3));
   const jumpY = -Math.sin(c.jump * Math.PI) * c.h * .8;
   let sx = c.dir * (c.flip ? -1 : 1), sy = 1, rot = 0;
-  if (c.mode === 'swim') { rot = Math.atan2(c.vy, Math.abs(c.vx)) * .4 * Math.sign(c.vx) + wob * .04; sx *= 1 + wob * .04; }
+  if (WORLD === 'dino' && c.mode === 'swim') { rot = Math.sin(c.walk || 0) * .06; }
+  else if (WORLD === 'dino' && c.mode === 'float') { rot = Math.atan2(c.vy, Math.abs(c.vx) * 3) * .5 * Math.sign(c.vx); sy = 1 + Math.sin(c.ph * 8) * .06; }
+  else if (c.mode === 'swim') { rot = Math.atan2(c.vy, Math.abs(c.vx)) * .4 * Math.sign(c.vx) + wob * .04; sx *= 1 + wob * .04; }
   else if (c.mode === 'float') { sy = 1 + wob * .06; sx *= 1 - wob * .04; }
   else { const sq = c.vy < 0 ? 1.06 : .97; sy = sq; sx *= 2 - sq; }
+  if (c.launch) rot = c.launch.rot;
   ctx.save();
   ctx.translate(c.x, c.y + jumpY); ctx.rotate(rot + (1 - (c.spin || 0)) * (c.spin > 0 ? Math.PI * 2 : 0) * (c.vx > 0 ? 1 : -1)); ctx.scale(sx, sy);
   ctx.shadowColor = 'rgba(0,10,20,.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 8;
@@ -335,14 +349,21 @@ let last = performance.now();
 function loop(t) {
   const dt = Math.min(.05, (t - last) / 1000); last = t;
   clock += dt * FAST;
+  ctx.save();
+  if (shake > .3) { ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake); shake *= Math.pow(.02, dt); } // stomps / eruptions
   drawBackground(t);
   scheduleVisitors();
-  checkShark();
+  if (WORLD === 'dino') checkVolcano(); else checkShark();
   drawVisitors(dt, 'back');
-  for (const c of creatures) { update(c, dt, t); draw(c, t); }
+  for (const c of [...creatures]) {
+    if (c.launch && !updateLaunched(c, dt)) { creatures.splice(creatures.indexOf(c), 1); originals.delete(c.id); renderList(); continue; }
+    if (!c.launch) update(c, dt, t);
+    draw(c, t);
+  }
   drawVisitors(dt, 'front'); drawFx(dt);
-  updateShark(dt);
+  if (WORLD === 'dino') updateVolcano(dt); else updateShark(dt);
   drawRipples(dt); drawBubbles(dt); drawPops(dt);
+  ctx.restore();
   requestAnimationFrame(loop);
 }
 
@@ -350,16 +371,17 @@ function loop(t) {
    Browsers only allow sound after the first tap, so audio starts on the first touch/click.
    BGM = a soft music-box tune over a slow chord loop, with an underwater filter. */
 const SND = (() => {
-  let ac = null, master, bgmBus, sfxBus, on = true, bgmTimer = null, nextT = 0, step = 0;
+  let ac = null, master, bgmBus, sfxBus, lp, on = true, bgmTimer = null, nextT = 0, step = 0;
   try { on = localStorage.getItem('suisui-sound') !== 'off'; } catch (_) {}
   const STEP = .34, CHORDS = [[60, 64, 67, 72], [57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67]]; // C Am F G
+  const DCHORDS = [[62, 66, 69, 74], [67, 71, 74, 79], [64, 67, 71, 76], [69, 73, 76, 81]]; // D G Em A (dinosaur world)
   const hz = m => 440 * Math.pow(2, (m - 69) / 12);
   function init() {
     if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     ac = new AC();
     master = ac.createGain(); master.gain.value = on ? .7 : 0; master.connect(ac.destination);
-    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.connect(master);
+    lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.connect(master);
     bgmBus = ac.createGain(); bgmBus.gain.value = .22; bgmBus.connect(lp);
     sfxBus = ac.createGain(); sfxBus.gain.value = .55; sfxBus.connect(master);
     nextT = ac.currentTime + .1;
@@ -387,8 +409,22 @@ const SND = (() => {
   }
   function scheduleBgm() {
     if (!ac || !on) { if (ac) nextT = ac.currentTime + .1; return; }
+    const dino = WORLD === 'dino';
+    lp.frequency.value = dino ? 7000 : 2600; // under water the music is muffled
     while (nextT < ac.currentTime + .4) {
-      const at = nextT - ac.currentTime, bar = Math.floor(step / 8) % 4, ch = CHORDS[bar], s8 = step % 8;
+      const at = nextT - ac.currentTime, bar = Math.floor(step / 8) % 4, s8 = step % 8;
+      if (dino) { // jungle: bouncy marimba over a walking bass, birds now and then
+        const ch = DCHORDS[bar];
+        if (s8 % 2 === 0) tone('triangle', hz(ch[0] - 24 + (s8 % 4 ? 7 : 0)), at, STEP * 1.5, .17, bgmBus, .01);
+        if (s8 % 4 === 2) { tone('sine', 90, at, .12, .12, bgmBus); }
+        if (Math.random() < (s8 % 2 ? .4 : .85)) {
+          const pool = ch.concat([ch[0] + 2, ch[0] + 9]).map(m => m + 12), m = pool[Math.floor(Math.random() * pool.length)];
+          tone('sine', hz(m), at, .35, .13, bgmBus); tone('square', hz(m), at, .06, .02, bgmBus);
+        }
+        if (Math.random() < .04) { const b = 2000 + Math.random() * 1200; tone('sine', [b, b * 1.4], at, .08, .04, bgmBus); tone('sine', [b * 1.1, b * 1.5], at + .1, .08, .04, bgmBus); }
+        nextT += STEP * .82; step++; continue;
+      }
+      const ch = CHORDS[bar];
       if (s8 === 0) { // soft pad + bass at the start of each bar
         for (const m of ch.slice(0, 3)) tone('sine', hz(m), at, STEP * 8, .05, bgmBus, .8);
         tone('triangle', hz(ch[0] - 24), at, STEP * 3, .16, bgmBus, .02);
@@ -405,7 +441,13 @@ const SND = (() => {
   }
   const play = {
     jump()   { tone('sine', [420, 980], 0, .18, .35); },
-    water()  { for (let i = 0; i < 3; i++) tone('sine', [300 + Math.random() * 200, 700 + Math.random() * 300], i * .06, .09, .2); },
+    water()  { if (WORLD === 'dino') { noise(0, .18, .35, 4000, 1500, 1.2); return; } for (let i = 0; i < 3; i++) tone('sine', [300 + Math.random() * 200, 700 + Math.random() * 300], i * .06, .09, .2); },
+    stomp()  { tone('sine', [90, 40], 0, .25, .5); noise(0, .15, .25, 300, 100, 1); },
+    crack()  { for (let i = 0; i < 3; i++) noise(i * .08, .05, .5, 3000, 1800, 4); [79, 84, 88].forEach((m, i) => tone('triangle', hz(m), .3 + i * .1, .4, .14)); },
+    rumble() { tone('sawtooth', [45, 38], 0, 1.8, .22, sfxBus, .4); noise(0, 1.8, .35, 200, 80, .7); },
+    boom()   { noise(0, 1.2, .9, 900, 60, .6); tone('sine', [80, 30], 0, 1, .6); },
+    whee()   { tone('sine', [400, 1600], 0, .7, .14); },
+    twinkle(){ [96, 100, 103, 108].forEach((m, i) => tone('sine', hz(m), i * .06, .5, .09)); },
     add()    { [0, 4, 7, 12, 16].forEach((d, i) => tone('triangle', hz(72 + d), i * .06, .5, .18)); },
     arrive() { tone('sine', hz(84), 0, .8, .14); tone('sine', hz(91), .18, 1, .12); },
     eel()    { tone('sine', [700, 220], 0, .15, .3); },
@@ -424,6 +466,13 @@ const SND = (() => {
         case 'oarfish':  [79, 83, 86, 91, 95, 98].forEach((m, i) => tone('sine', hz(m), i * .08, .5, .08)); break;
         case 'school':   noise(0, .25, .4, 5000, 2000, 1.5); break;
         case 'clione':   [91, 96, 100, 103].forEach((m, i) => tone('sine', hz(m), i * .06, .6, .08)); break;
+        case 'trex':     tone('sawtooth', [180, 90], 0, 1.2, .3, sfxBus, .05); tone('sawtooth', [185, 95], 0, 1.2, .2, sfxBus, .05); noise(0, 1.2, .4, 600, 200, .8); break;
+        case 'brachio':  tone('sine', [110, 140], 0, .9, .3, sfxBus, .1); tone('sine', [140, 100], .8, .9, .25, sfxBus, .1); break;
+        case 'stego':    [84, 88, 91, 96, 100].forEach((m, i) => tone('triangle', hz(m), i * .07, .5, .1)); break;
+        case 'tricera':  for (let i = 0; i < 6; i++) { tone('sine', [110, 50], i * .12, .12, .35); } break;
+        case 'ptera':    tone('square', [1800, 1200], 0, .2, .08); tone('square', [1900, 1300], .22, .25, .08); break;
+        case 'egg':      [84, 88, 91].forEach((m, i) => tone('sine', hz(m), i * .08, .3, .15)); break;
+        case 'star':     [96, 100, 103, 108, 112].forEach((m, i) => tone('sine', hz(m), i * .07, .7, .08)); break;
       }
     },
   };
@@ -452,6 +501,8 @@ cv.addEventListener('pointerdown', e => {
   // panel open: a tap outside it just closes the panel
   const tr = document.getElementById('tray');
   if (!tr.classList.contains('hide')) { tr.classList.add('hide'); document.getElementById('showTray').hidden = false; return; }
+  // small visitors (egg, shooting star, pteranodons) get the tap before the drawings in front of them
+  if (WORLD === 'dino' && tapDino(e.clientX, e.clientY, true)) return;
   const px = e.clientX, py = e.clientY, c = hit(px, py);
   for (let k = 0; k < (c ? 16 : 8); k++) bubbles.push({x: px + (Math.random() - .5) * 30, y: py, r: 2 + Math.random() * 6, v: 50 + Math.random() * 80, ph: Math.random() * 6});
   if (!c && (tapEels(px, py) || tapCrab(px, py) || tapVisitors(px, py))) return;
@@ -554,6 +605,7 @@ const visitors = [];
 const FORCE = new URLSearchParams(location.search).get('visit'); // ?visit=squid to see one right away
 let nextVisit = FORCE ? 1 : FIRST_VISIT, lastKind = '';
 function spawnVisitor(kind) {
+  if (WORLD === 'dino') return spawnDino(kind);
   const m = Math.min(W, H), side = Math.random() < .5 ? 1 : -1; // 1 = enters from the left
   if (kind === 'eels') { // garden eels pop out of the sand, sway, then hide again
     const n = 6 + Math.floor(Math.random() * 3), cx = W * (.25 + Math.random() * .5), span = Math.min(W * .6, m * 1.1);
@@ -616,7 +668,7 @@ function spawnVisitor(kind) {
 function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
-  const kinds = ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa'].filter(k => k !== lastKind);
+  const kinds = (WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa']).filter(k => k !== lastKind);
   lastKind = FORCE && clock < 5 ? FORCE : kinds[Math.floor(Math.random() * kinds.length)];
   spawnVisitor(lastKind); SND.arrive();
 }
@@ -925,6 +977,7 @@ function drawFx(dt) {
 }
 // tap on a visitor -> its own little show. Returns true when something was tapped.
 function tapVisitors(px, py) {
+  if (WORLD === 'dino') return tapDino(px, py);
   const inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
   const start = (v, d) => { if (v.act > 0) return false; v.act = d; v.actDur = d; SND.visitor(v.kind); return true; };
   for (let i = visitors.length - 1; i >= 0; i--) {
@@ -985,6 +1038,7 @@ function drawVisitors(dt, layer) {
     if (v.act > 0) v.act = Math.max(0, v.act - dt);
     const P = v.act > 0 ? 1 - v.act / v.actDur : -1; // progress of a tap reaction (0..1), or -1
     ctx.save();
+    if (WORLD === 'dino') { if (!drawDinoVisitor(v, dt, P)) visitors.splice(i, 1); ctx.restore(); continue; }
     if (v.kind === 'kappa') {
       const st = Math.sin(v.t * 2.6);
       if (P < 0) { v.x += v.dir * (45 + Math.max(0, -Math.cos(v.t * 2.6)) * 110) * dt; v.y += Math.sin(v.t * 1.3) * 10 * dt; }
@@ -1381,9 +1435,9 @@ function renderList() {
     const im = new Image(); im.src = c.img.toDataURL ? c.img.toDataURL() : c.img.src; im.alt = '';
     const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = c.name;
     if (c.user) { nm.textContent = ''; nm.classList.add('life'); c.lifeEl = nm; } // added drawings: no file name, just the time left
-    const md = document.createElement('button'); md.textContent = MODES.find(m => m[0] === c.mode)[1];
+    const md = document.createElement('button'); md.textContent = modeName(c.mode);
     md.title = '動き方を変える';
-    md.onclick = () => { const i = MODES.findIndex(m => m[0] === c.mode); c.mode = MODES[(i + 1) % 3][0]; c.vy = 0; md.textContent = MODES[(i + 1) % 3][1]; };
+    md.onclick = () => { const i = MODES.findIndex(m => m[0] === c.mode); c.mode = MODES[(i + 1) % 3][0]; c.vy = 0; md.textContent = modeName(MODES[(i + 1) % 3][0]); };
     const fl = document.createElement('button'); fl.textContent = '向き'; fl.title = '左右の向きを反転';
     fl.onclick = () => { c.flip = !c.flip; };
     const bg = document.createElement('button'); bg.textContent = '大'; bg.title = '大きさを変える';
@@ -1401,7 +1455,8 @@ function updateLife() {
   for (const c of creatures) {
     if (!c.lifeEl) continue;
     const left = Math.ceil(LIFE - (clock - c.born));
-    c.lifeEl.textContent = left > 0 ? `サメが来るまで ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : 'サメが来た！';
+    const dino = WORLD === 'dino', mmss = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    c.lifeEl.textContent = left > 0 ? (dino ? `噴火まで ${mmss}` : `サメが来るまで ${mmss}`) : (dino ? '噴火！' : 'サメが来た！');
   }
 }
 setInterval(updateLife, 1000);
@@ -1497,6 +1552,50 @@ const PAINT = (() => {
       t.line(p => { p.moveTo(340, 168); p.quadraticCurveTo(312, 300, 340, 432); });
       t.dot(425, 280, 13); t.line(p => { p.moveTo(400, 340); p.quadraticCurveTo(380, 380, 420, 375); });
     }},
+    {name: 'ティラノ', world: 'dino', mode: 'swim', draw(t) {
+      t.part(p => { p.moveTo(210, 360); p.quadraticCurveTo(100, 380, 20, 450); p.quadraticCurveTo(110, 320, 230, 290); p.closePath(); });
+      t.part(p => { p.moveTo(250, 400); p.lineTo(235, 540); p.lineTo(300, 540); p.lineTo(310, 400); p.closePath(); });
+      t.part(p => { p.moveTo(330, 400); p.lineTo(330, 540); p.lineTo(395, 540); p.lineTo(380, 395); p.closePath(); });
+      t.part(p => p.ellipse(310, 330, 150, 105, -.35, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(380, 210); p.quadraticCurveTo(410, 110, 500, 110); p.quadraticCurveTo(585, 115, 585, 180); p.lineTo(583, 240); p.quadraticCurveTo(490, 255, 420, 245); p.closePath(); });
+      t.line(p => { p.moveTo(450, 205); p.quadraticCurveTo(520, 215, 583, 200); });
+      t.line(p => { p.moveTo(405, 320); p.quadraticCurveTo(450, 330, 455, 360); p.quadraticCurveTo(430, 355, 400, 340); });
+      t.line(p => { p.moveTo(205, 300); p.quadraticCurveTo(300, 420, 420, 360); });
+      for (const [x, y, r] of [[250, 270, 16], [300, 245, 13], [345, 265, 11]]) t.line(p => p.arc(x, y, r, 0, Math.PI * 2));
+      t.dot(505, 155, 14);
+    }},
+    {name: 'トリケラ', world: 'dino', mode: 'swim', draw(t) {
+      t.part(p => { p.moveTo(140, 330); p.quadraticCurveTo(70, 350, 20, 380); p.quadraticCurveTo(80, 290, 160, 285); p.closePath(); });
+      for (const x of [170, 230, 340, 400]) t.part(p => { p.moveTo(x - 25, 370); p.lineTo(x - 25, 470); p.lineTo(x + 25, 470); p.lineTo(x + 25, 370); p.closePath(); });
+      t.part(p => p.ellipse(280, 320, 175, 100, 0, 0, Math.PI * 2));
+      t.part(p => p.arc(440, 255, 100, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(470, 225); p.lineTo(585, 150); p.lineTo(495, 245); p.closePath(); });
+      t.part(p => p.ellipse(495, 310, 85, 60, .1, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(560, 300); p.lineTo(595, 270); p.lineTo(575, 320); p.closePath(); });
+      t.line(p => p.arc(440, 255, 70, Math.PI * .55, Math.PI * 1.45));
+      t.line(p => { p.moveTo(140, 330); p.quadraticCurveTo(280, 410, 420, 350); });
+      t.dot(505, 290, 12); t.line(p => { p.moveTo(530, 345); p.quadraticCurveTo(550, 350, 560, 338); });
+    }},
+    {name: 'ステゴ', world: 'dino', mode: 'swim', draw(t) {
+      for (let k = 0; k < 6; k++) { const cx = 175 + k * 50, cy = 225 - Math.sin((k + .5) / 6 * Math.PI) * 55, sz = 34 + Math.sin((k + .5) / 6 * Math.PI) * 14; t.part(p => { p.moveTo(cx - sz * .7, cy + sz); p.lineTo(cx, cy - sz); p.lineTo(cx + sz * .7, cy + sz); p.closePath(); }); }
+      t.part(p => { p.moveTo(140, 350); p.quadraticCurveTo(70, 350, 15, 320); p.quadraticCurveTo(70, 300, 150, 300); p.closePath(); });
+      t.part(p => { p.moveTo(30, 325); p.lineTo(10, 270); p.lineTo(55, 315); p.closePath(); });
+      for (const x of [175, 235, 370, 430]) t.part(p => { p.moveTo(x - 24, 350); p.lineTo(x - 24, 450); p.lineTo(x + 24, 450); p.lineTo(x + 24, 350); p.closePath(); });
+      t.part(p => { p.moveTo(110, 370); p.quadraticCurveTo(300, 120, 500, 370); p.closePath(); });
+      t.part(p => { p.moveTo(470, 340); p.quadraticCurveTo(565, 300, 590, 345); p.quadraticCurveTo(560, 385, 480, 375); p.closePath(); });
+      t.line(p => { p.moveTo(150, 330); p.quadraticCurveTo(300, 300, 460, 330); });
+      t.dot(555, 335, 9);
+    }},
+    {name: 'プテラ', world: 'dino', mode: 'float', draw(t) {
+      t.part(p => { p.moveTo(240, 300); p.lineTo(30, 140); p.quadraticCurveTo(120, 300, 200, 340); p.closePath(); });
+      t.part(p => { p.moveTo(330, 300); p.lineTo(570, 130); p.quadraticCurveTo(470, 300, 380, 340); p.closePath(); });
+      t.part(p => p.ellipse(290, 320, 95, 45, 0, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(350, 300); p.lineTo(260, 210); p.lineTo(345, 270); p.closePath(); });
+      t.part(p => { p.moveTo(360, 290); p.lineTo(500, 330); p.lineTo(365, 340); p.closePath(); });
+      t.part(p => p.arc(355, 310, 35, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(200, 230); p.lineTo(215, 320); p.moveTo(130, 200); p.lineTo(170, 310); p.moveTo(400, 225); p.lineTo(385, 315); p.moveTo(470, 195); p.lineTo(430, 310); });
+      t.dot(365, 300, 9);
+    }},
   ];
   const COLORS = ['#ff5a5a', '#ff9a3c', '#ffd93b', '#9be15d', '#3cb371', '#5ac8fa', '#3b7bff', '#a970ff', '#ff8cc6', '#a0522d', '#333333', '#ffffff'];
   let cur = 0, color = COLORS[1], tool = 'fill', undo = [];
@@ -1575,7 +1674,7 @@ const PAINT = (() => {
   TPL.forEach((t, i) => {
     const b = document.createElement('button'), c = document.createElement('canvas'); c.width = c.height = 128;
     const x = c.getContext('2d'); x.scale(128 / S, 128 / S); render(t, x, null, 14);
-    b.append(c); b.title = t.name; b.setAttribute('aria-label', t.name); b.onclick = () => load(i); tplBox.append(b);
+    b.append(c); b.title = t.name; b.setAttribute('aria-label', t.name); b.dataset.world = t.world || 'sea'; b.onclick = () => load(i); tplBox.append(b);
   });
   COLORS.forEach(col => {
     const b = document.createElement('button'); b.style.background = col; b.setAttribute('aria-label', col);
@@ -1603,7 +1702,11 @@ const PAINT = (() => {
     w.document.close();
   };
   load(0);
-  return {open() { root.hidden = false; }};
+  return {open() { // show only this world's line drawings
+    [...tplBox.children].forEach(b => { b.hidden = b.dataset.world !== WORLD; });
+    if ((TPL[cur].world || 'sea') !== WORLD) load(TPL.findIndex(t => (t.world || 'sea') === WORLD));
+    root.hidden = false;
+  }};
 })();
 document.getElementById('paintOpen').onclick = () => PAINT.open();
 
@@ -1686,8 +1789,393 @@ const ZUKAN = (() => {
 })();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+/* ====================== DINOSAUR WORLD ======================
+   Same app, different world: sky, jungle, a volcano; drawings walk / fly / hop;
+   dinosaurs visit every 30 s; after 3 minutes the volcano erupts and launches the drawing into the sky. */
+let dinoScene = null, erupt = null, shake = 0;
+const lava = [];
+function buildDinoScene() {
+  const G = GROUND(), m = Math.min(W, H);
+  dinoScene = {
+    clouds: Array.from({length: 5}, (_, i) => ({x: Math.random() * W, y: H * (.06 + Math.random() * .22), s: m * (.08 + Math.random() * .08), v: 6 + Math.random() * 10})),
+    hills: Array.from({length: 7}, (_, i) => ({x: (i / 6) * W, r: W * (.12 + Math.random() * .1)})),
+    vol: {x: W * .76, w: Math.max(W * .34, m * .5), h: Math.min(H * .44, m * .55)},
+    trees: Array.from({length: Math.max(3, Math.round(W / 260))}, (_, i) => ({x: (i + .2 + Math.random() * .6) * W / Math.max(3, Math.round(W / 260)), h: H * (.2 + Math.random() * .14), ph: Math.random() * 6, lean: (Math.random() - .5) * .3})),
+    ferns: Array.from({length: Math.max(6, Math.round(W / 90))}, () => ({x: Math.random() * W, s: m * (.04 + Math.random() * .04), ph: Math.random() * 6})),
+    smoke: [],
+  };
+  dinoScene.trees = dinoScene.trees.filter(t => Math.abs(t.x - dinoScene.vol.x) > dinoScene.vol.w * .3);
+}
+function drawDinoBackground(t) {
+  if (!dinoScene) buildDinoScene();
+  const S = dinoScene, G = GROUND(), dt = 1 / 60;
+  const g = ctx.createLinearGradient(0, 0, 0, G);
+  g.addColorStop(0, '#7cc8f2'); g.addColorStop(.7, '#bfe6f5'); g.addColorStop(1, '#ffe2a8');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // sun
+  const sr = Math.min(W, H) * .07;
+  ctx.fillStyle = 'rgba(255,240,170,.45)'; ctx.beginPath(); ctx.arc(W * .14, H * .14, sr * 1.7, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff3a8'; ctx.beginPath(); ctx.arc(W * .14, H * .14, sr, 0, 7); ctx.fill();
+  // clouds
+  ctx.fillStyle = 'rgba(255,255,255,.9)';
+  for (const c of S.clouds) {
+    c.x += c.v * dt; if (c.x - c.s * 2 > W) c.x = -c.s * 2;
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, c.s * 1.4, c.s * .55, 0, 0, 7); ctx.ellipse(c.x - c.s * .7, c.y + c.s * .1, c.s * .8, c.s * .45, 0, 0, 7); ctx.ellipse(c.x + c.s * .6, c.y - c.s * .2, c.s * .9, c.s * .55, 0, 0, 7); ctx.fill();
+  }
+  // far hills
+  ctx.fillStyle = '#9fc7a8';
+  for (const h of S.hills) { ctx.beginPath(); ctx.ellipse(h.x, G, h.r, h.r * .45, 0, Math.PI, 0); ctx.fill(); }
+  // volcano
+  const V = S.vol, top = G - V.h, glow = erupt ? .6 + .4 * Math.sin(t * .02) : .35 + .1 * Math.sin(t * .003);
+  ctx.fillStyle = '#8a5a3c'; ctx.strokeStyle = '#5b3a24'; ctx.lineWidth = 5; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(V.x - V.w / 2, G + 4); ctx.quadraticCurveTo(V.x - V.w * .2, G - V.h * .5, V.x - V.w * .12, top);
+  ctx.lineTo(V.x + V.w * .12, top); ctx.quadraticCurveTo(V.x + V.w * .2, G - V.h * .5, V.x + V.w / 2, G + 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#a06b47'; ctx.beginPath(); ctx.moveTo(V.x - V.w * .05, top + 6); ctx.quadraticCurveTo(V.x - V.w * .1, G - V.h * .45, V.x - V.w * .28, G); ctx.lineTo(V.x - V.w * .16, G); ctx.quadraticCurveTo(V.x - V.w * .02, G - V.h * .4, V.x - V.w * .05, top + 6); ctx.fill();
+  ctx.fillStyle = `rgba(255,110,40,${glow})`; // lava at the crater and a little stream
+  ctx.beginPath(); ctx.ellipse(V.x, top + 4, V.w * .12, V.h * .05, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(V.x + V.w * .02, top + 6); ctx.quadraticCurveTo(V.x + V.w * .09, G - V.h * .6, V.x + V.w * .05, G - V.h * .35); ctx.lineTo(V.x + V.w * .02, G - V.h * .38); ctx.quadraticCurveTo(V.x + V.w * .05, G - V.h * .6, V.x - V.w * .01, top + 6); ctx.fill();
+  // smoke
+  if (Math.random() < (erupt ? .5 : .06)) S.smoke.push({x: V.x + (Math.random() - .5) * V.w * .15, y: top, r: V.w * (.04 + Math.random() * .04), a: erupt ? .8 : .5, v: 25 + Math.random() * 25, dark: !!erupt});
+  for (let i = S.smoke.length - 1; i >= 0; i--) {
+    const s = S.smoke[i]; s.y -= s.v * dt; s.x += 8 * dt; s.r += 6 * dt; s.a -= dt * .12;
+    if (s.a <= 0) { S.smoke.splice(i, 1); continue; }
+    ctx.fillStyle = s.dark ? `rgba(90,80,80,${s.a})` : `rgba(235,235,235,${s.a})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill();
+  }
+  // ground
+  ctx.fillStyle = '#9bc95a';
+  ctx.beginPath(); ctx.moveTo(0, H); for (let x = 0; x <= W; x += 20) ctx.lineTo(x, G + Math.sin(x * .01) * 5); ctx.lineTo(W, H); ctx.fill();
+  ctx.fillStyle = '#c99a62'; ctx.fillRect(0, G + (H - G) * .55, W, H);
+  ctx.fillStyle = '#86b84a'; ctx.beginPath(); ctx.moveTo(0, G + (H - G) * .55); for (let x = 0; x <= W; x += 30) ctx.lineTo(x, G + (H - G) * .55 + (x / 30 % 2 ? 6 : -2)); ctx.lineTo(W, G + (H - G) * .55 + 10); ctx.lineTo(0, G + (H - G) * .55 + 10); ctx.fill();
+  // palm-like trees
+  for (const tr of S.trees) {
+    const sw = reduce ? 0 : Math.sin(t * .001 + tr.ph) * .04, tx = tr.x + tr.h * (tr.lean + sw), ty = G - tr.h;
+    ctx.strokeStyle = '#7a5230'; ctx.lineWidth = Math.max(8, tr.h * .06); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(tr.x, G + 4); ctx.quadraticCurveTo(tr.x + tr.h * tr.lean * .3, G - tr.h * .5, tx, ty); ctx.stroke();
+    ctx.fillStyle = '#4f9a3a';
+    for (let k = 0; k < 6; k++) {
+      const a = -Math.PI / 2 + (k - 2.5) * .55 + sw * 3, L = tr.h * .42;
+      ctx.save(); ctx.translate(tx, ty); ctx.rotate(a);
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(L * .5, -L * .22, L, L * .25); ctx.quadraticCurveTo(L * .5, L * .05, 0, 0); ctx.fill(); ctx.restore();
+    }
+  }
+  // ferns along the ground
+  for (const f of S.ferns) {
+    const sw = reduce ? 0 : Math.sin(t * .0015 + f.ph) * .1;
+    ctx.strokeStyle = '#3f8a35'; ctx.lineWidth = 4;
+    for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(f.x, G + 6); ctx.quadraticCurveTo(f.x + k * f.s * .4, G - f.s * .8, f.x + k * f.s * .8 + sw * f.s, G - f.s * (1.1 - Math.abs(k) * .2)); ctx.stroke(); }
+  }
+}
+
+/* walking / flying for drawings in the dinosaur world ("swim" = walk, "float" = fly) */
+function updateDinoMove(c, dt, sp, tg) {
+  const G = GROUND();
+  if (c.mode === 'swim') { // walk on the ground, stop now and then
+    if (c.pause > 0) c.pause -= dt;
+    else {
+      c.x += c.vx * .8 * sp * dt; c.walk = (c.walk || 0) + dt * 9;
+      if (!tg && !c.boost && Math.random() < dt * .12) c.pause = .8 + Math.random() * 1.6;
+      if (!tg && !c.boost && Math.random() < dt * .05) c.vx *= -1;
+    }
+    c.y += ((G - c.h / 2 + 4) - Math.abs(Math.sin(c.walk || 0)) * c.h * .05 - c.y) * Math.min(1, dt * 10);
+  } else { // fly through the sky
+    if (!c.alt || Math.random() < dt * .1) c.alt = H * (.1 + Math.random() * .38);
+    const goal = tg ? tg.y : c.alt;
+    c.x += c.vx * 1.15 * sp * dt;
+    c.vy += ((goal + Math.sin(c.ph * 1.6) * 30 - c.y) * 1.2 - c.vy) * Math.min(1, dt * 2);
+    c.y += c.vy * dt;
+    if (!tg && !c.boost && Math.random() < dt * .04) c.vx *= -1;
+    c.y = Math.min(G - c.h / 2, Math.max(c.h / 2, c.y));
+  }
+  if (c.x - c.w / 2 < 0) { c.x = c.w / 2; c.vx = Math.abs(c.vx); }
+  if (c.x + c.w / 2 > W) { c.x = W - c.w / 2; c.vx = -Math.abs(c.vx); }
+  const want = Math.sign(c.vx) || 1;
+  c.dir += (want - c.dir) * Math.min(1, dt * 5);
+}
+
+/* ---------- dinosaur visitors ---------- */
+function dinoLegs(L, ph, color, line) { // legs drawn in sprite space, swinging in pairs
+  for (const [i, lg] of L.entries()) {
+    const a = Math.sin(ph + (i % 2 ? Math.PI : 0)) * .35;
+    ctx.save(); ctx.translate(lg[0], lg[1]); ctx.rotate(a);
+    ctx.fillStyle = color; ctx.strokeStyle = line; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-lg[3] / 2, 0, lg[3], lg[2], lg[3] * .4) : ctx.rect(-lg[3] / 2, 0, lg[3], lg[2]); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+}
+const DSPR = {
+  brachio: sprite(620, 470, x => {
+    const b = '#8fc46a', l = '#3f6b2a';
+    x.fillStyle = b; x.strokeStyle = l; x.lineWidth = 6;
+    x.beginPath(); x.moveTo(150, 300); x.quadraticCurveTo(60, 330, 4, 360); x.quadraticCurveTo(80, 300, 170, 255); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.moveTo(380, 260); x.quadraticCurveTo(470, 200, 500, 70); x.lineTo(560, 70); x.quadraticCurveTo(530, 230, 440, 320); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.ellipse(290, 300, 175, 95, 0, 0, 7); x.fill(); x.stroke();
+    x.beginPath(); x.ellipse(555, 60, 45, 28, -.15, 0, 7); x.fill(); x.stroke();
+    x.fillStyle = '#c8e6a8'; x.beginPath(); x.ellipse(300, 345, 120, 40, 0, 0, 7); x.fill();
+    x.fillStyle = '#6da64e'; for (const [a, c, r] of [[230, 250, 16], [290, 235, 12], [350, 255, 15], [260, 290, 10]]) { x.beginPath(); x.arc(a, c, r, 0, 7); x.fill(); }
+    x.fillStyle = '#222'; x.beginPath(); x.arc(570, 52, 6, 0, 7); x.fill();
+    x.strokeStyle = l; x.lineWidth = 4; x.beginPath(); x.arc(580, 68, 10, .2, 1.3); x.stroke();
+  }),
+  trex: sprite(540, 440, x => {
+    const b = '#e2913a', l = '#7a3f12';
+    x.fillStyle = b; x.strokeStyle = l; x.lineWidth = 6;
+    x.beginPath(); x.moveTo(140, 250); x.quadraticCurveTo(60, 270, 4, 320); x.quadraticCurveTo(90, 210, 170, 185); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.ellipse(250, 230, 130, 95, -.35, 0, 7); x.fill(); x.stroke();
+    x.beginPath(); x.moveTo(320, 130); x.quadraticCurveTo(360, 50, 450, 55); x.quadraticCurveTo(530, 60, 532, 120); x.lineTo(530, 170); x.quadraticCurveTo(440, 185, 370, 175); x.closePath(); x.fill(); x.stroke();
+    x.fillStyle = '#f7d29a'; x.beginPath(); x.ellipse(260, 270, 80, 45, -.35, 0, 7); x.fill();
+    x.strokeStyle = l; x.lineWidth = 4; x.beginPath(); x.moveTo(400, 140); x.quadraticCurveTo(470, 150, 530, 135); x.stroke();
+    x.fillStyle = '#fff'; for (let k = 0; k < 5; k++) { x.beginPath(); x.moveTo(420 + k * 22, 142); x.lineTo(430 + k * 22, 156); x.lineTo(440 + k * 22, 140); x.fill(); }
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(450, 92, 13, 0, 7); x.fill(); x.fillStyle = '#222'; x.beginPath(); x.arc(454, 92, 7, 0, 7); x.fill();
+    x.fillStyle = b; x.strokeStyle = l; x.lineWidth = 5; x.beginPath(); x.moveTo(330, 230); x.quadraticCurveTo(370, 240, 375, 265); x.quadraticCurveTo(350, 262, 325, 248); x.fill(); x.stroke();
+    x.fillStyle = '#c96f22'; for (const [a, c] of [[200, 180], [240, 160], [280, 175]]) { x.beginPath(); x.arc(a, c, 9, 0, 7); x.fill(); }
+  }),
+  stego: sprite(600, 360, x => {
+    const b = '#5fb3a1', l = '#24564c', p = '#f08a3c';
+    x.fillStyle = p; x.strokeStyle = '#8a3f12'; x.lineWidth = 5;
+    for (let k = 0; k < 7; k++) { const cx = 170 + k * 45, cy = 150 - Math.sin(k / 6 * Math.PI) * 50, s = 26 + Math.sin(k / 6 * Math.PI) * 14; x.beginPath(); x.moveTo(cx - s * .7, cy + s); x.lineTo(cx, cy - s); x.lineTo(cx + s * .7, cy + s); x.closePath(); x.fill(); x.stroke(); }
+    for (const [a, c] of [[30, 220], [55, 200]]) { x.beginPath(); x.moveTo(a, c + 20); x.lineTo(a - 20, c - 22); x.lineTo(a + 12, c + 14); x.fill(); x.stroke(); }
+    x.fillStyle = b; x.strokeStyle = l; x.lineWidth = 6;
+    x.beginPath(); x.moveTo(140, 250); x.quadraticCurveTo(70, 250, 10, 230); x.quadraticCurveTo(70, 210, 150, 200); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.moveTo(100, 260); x.quadraticCurveTo(300, 40, 500, 250); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.moveTo(470, 230); x.quadraticCurveTo(560, 200, 590, 240); x.quadraticCurveTo(560, 275, 480, 262); x.closePath(); x.fill(); x.stroke();
+    x.fillStyle = '#222'; x.beginPath(); x.arc(560, 232, 6, 0, 7); x.fill();
+    x.fillStyle = '#8fd4c4'; x.beginPath(); x.ellipse(300, 240, 150, 20, 0, Math.PI, 0); x.fill();
+  }),
+  tricera: sprite(600, 360, x => {
+    const b = '#6aa3d9', l = '#24486b';
+    x.fillStyle = b; x.strokeStyle = l; x.lineWidth = 6;
+    x.beginPath(); x.moveTo(110, 220); x.quadraticCurveTo(50, 235, 6, 260); x.quadraticCurveTo(60, 190, 130, 180); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.ellipse(250, 200, 170, 95, 0, 0, 7); x.fill(); x.stroke();
+    x.fillStyle = '#f3c34b'; x.strokeStyle = '#8a6a10'; x.beginPath(); x.arc(420, 150, 95, 0, 7); x.fill(); x.stroke();
+    x.fillStyle = '#f7da84'; for (let k = 0; k < 9; k++) { const a = Math.PI * (.6 + k * .2); x.beginPath(); x.arc(420 + Math.cos(a) * 80, 150 + Math.sin(a) * 80, 10, 0, 7); x.fill(); }
+    x.fillStyle = b; x.strokeStyle = l; x.beginPath(); x.ellipse(480, 200, 80, 55, .1, 0, 7); x.fill(); x.stroke();
+    x.fillStyle = '#fffbe6'; x.strokeStyle = '#8a7a50'; x.lineWidth = 4;
+    for (const [a, c, d, e] of [[470, 160, 590, 95, 0], [500, 170, 595, 135]]) { x.beginPath(); x.moveTo(a - 12, c + 6); x.lineTo(d, e); x.lineTo(a + 12, c + 8); x.closePath(); x.fill(); x.stroke(); }
+    x.beginPath(); x.moveTo(540, 205); x.lineTo(585, 180); x.lineTo(555, 222); x.closePath(); x.fill(); x.stroke();
+    x.fillStyle = '#222'; x.beginPath(); x.arc(495, 185, 8, 0, 7); x.fill();
+    x.strokeStyle = l; x.lineWidth = 4; x.beginPath(); x.arc(530, 230, 14, .3, 1.4); x.stroke();
+  }),
+  baby: sprite(260, 220, x => {
+    const b = '#8fd16a', l = '#3f7a2a';
+    x.fillStyle = b; x.strokeStyle = l; x.lineWidth = 5;
+    x.beginPath(); x.moveTo(70, 150); x.quadraticCurveTo(20, 160, 4, 190); x.quadraticCurveTo(40, 130, 90, 120); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.ellipse(120, 150, 65, 50, 0, 0, 7); x.fill(); x.stroke();
+    x.beginPath(); x.arc(185, 95, 50, 0, 7); x.fill(); x.stroke();
+    x.fillStyle = '#d8f2c4'; x.beginPath(); x.ellipse(125, 170, 40, 22, 0, 0, 7); x.fill();
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(200, 85, 14, 0, 7); x.fill(); x.fillStyle = '#222'; x.beginPath(); x.arc(204, 86, 8, 0, 7); x.fill();
+    x.fillStyle = '#ff9fb0'; x.beginPath(); x.arc(205, 115, 9, 0, 7); x.fill();
+    x.strokeStyle = l; x.lineWidth = 4; x.beginPath(); x.arc(220, 108, 10, .2, 1.4); x.stroke();
+    x.fillStyle = b; x.strokeStyle = l; x.lineWidth = 5; for (const a of [95, 145]) { x.beginPath(); x.roundRect ? x.roundRect(a - 12, 180, 24, 36, 10) : x.rect(a - 12, 180, 24, 36); x.fill(); x.stroke(); }
+  }),
+};
+const WALKERS = { // sprite, width (× short side), speed, layer, legs [x, y, length, width] in sprite space
+  brachio: {spr: DSPR.brachio, w: 1.05, speed: 32, layer: 'back', legs: [[200, 340, 125, 44], [250, 340, 125, 44], [350, 340, 125, 44], [400, 340, 125, 44]], leg: ['#8fc46a', '#3f6b2a']},
+  trex:    {spr: DSPR.trex, w: .78, speed: 70, layer: 'front', legs: [[215, 280, 155, 52], [270, 280, 155, 52]], leg: ['#e2913a', '#7a3f12']},
+  stego:   {spr: DSPR.stego, w: .62, speed: 45, layer: 'front', legs: [[160, 230, 125, 40], [210, 240, 115, 40], [380, 230, 125, 40], [430, 225, 130, 40]], leg: ['#5fb3a1', '#24564c']},
+  tricera: {spr: DSPR.tricera, w: .62, speed: 55, layer: 'front', legs: [[140, 240, 115, 42], [190, 250, 105, 42], [300, 250, 105, 42], [350, 240, 115, 42]], leg: ['#6aa3d9', '#24486b']},
+};
+function spawnDino(kind) {
+  const m = Math.min(W, H), side = Math.random() < .5 ? 1 : -1, G = GROUND();
+  if (WALKERS[kind]) {
+    const k = WALKERS[kind], w = m * k.w, h = w * k.spr.height / k.spr.width;
+    visitors.push({kind, layer: k.layer, w, h, x: side > 0 ? -w / 2 : W + w / 2, y: G + 6, dir: side, t: 0, step: 0});
+  } else if (kind === 'ptera') {
+    const s = m * .11, list = [];
+    for (let i = 0; i < 3; i++) list.push({dx: -i * s * 3.2, dy: (i % 2 ? 1 : -1) * s * .9 * (i ? 1 : 0), ph: Math.random() * 6});
+    visitors.push({kind, layer: 'front', s, list, x: side > 0 ? -s * 3 : W + s * 3, y: H * (.15 + Math.random() * .15), dir: side, t: 0});
+  } else if (kind === 'egg') {
+    const s = m * .1;
+    visitors.push({kind, layer: 'front', s, x: W * (.2 + Math.random() * .5), y: G, dir: side, t: 0, hatch: 4.5, hx: 0});
+  } else if (kind === 'star') {
+    visitors.push({kind, layer: 'back', x: W * (.7 + Math.random() * .25), y: H * .05, vx: -W * .28, vy: H * .1, t: 0, trail: []});
+  }
+}
+function drawDinoVisitor(v, dt, P) { // returns false when it has left
+  if (WALKERS[v.kind]) {
+    const k = WALKERS[v.kind], sc = v.w / k.spr.width;
+    const charging = v.kind === 'tricera' && P >= 0, roaring = v.kind === 'trex' && P >= 0;
+    const speed = roaring ? 0 : k.speed * (charging ? 1 + (1 - P) * 4 : 1);
+    v.x += v.dir * speed * dt;
+    const prev = v.step; v.step += dt * speed * .11;
+    if (v.kind === 'trex' && Math.floor(prev / Math.PI) !== Math.floor(v.step / Math.PI) && v.x > -v.w / 3 && v.x < W + v.w / 3) { shake = Math.max(shake, 5); SND.stomp(); }
+    if (charging && Math.random() < .5) bubbles.push({x: v.x - v.dir * v.w * .3, y: v.y - 10, r: 4 + Math.random() * 8, v: 20 + Math.random() * 30, ph: 0});
+    const bob = -Math.abs(Math.sin(v.step)) * v.h * .02;
+    ctx.translate(v.x, v.y + bob); ctx.scale(v.dir * sc, sc);
+    if (roaring) ctx.rotate(-Math.sin(P * Math.PI) * .12);
+    if (v.kind === 'brachio' && P >= 0) ctx.scale(1, 1 + Math.sin(P * Math.PI * 4) * .02);
+    ctx.translate(-k.spr.width / 2, -k.spr.height);
+    dinoLegs(k.legs, v.step, k.leg[0], k.leg[1]);
+    if (v.kind === 'stego' && P >= 0) { ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 40 * Math.sin(P * Math.PI); }
+    ctx.drawImage(k.spr, 0, 0);
+    return v.dir > 0 ? v.x - v.w / 2 < W : v.x + v.w / 2 > 0;
+  }
+  if (v.kind === 'ptera') {
+    v.x += v.dir * (P >= 0 ? 60 : 120) * dt;
+    for (const b of v.list) {
+      b.ph += dt * 6;
+      let bx = v.x + b.dx * v.dir, by = v.y + b.dy + Math.sin(v.t * 2 + b.dx) * 12, rot = 0;
+      if (P >= 0) { const a = P * Math.PI * 2; by -= Math.sin(a) * v.s * 2.5; rot = -a * v.dir; }
+      ctx.save(); ctx.translate(bx, by); ctx.rotate(rot); ctx.scale(v.dir, 1); drawPtera(v.s, b.ph); ctx.restore();
+    }
+    const tail = v.x + Math.min(...v.list.map(b => b.dx)) * v.dir;
+    return v.dir > 0 ? tail - v.s * 3 < W : tail + v.s * 3 > 0;
+  }
+  if (v.kind === 'egg') {
+    if (v.t < v.hatch) { // wobble, then crack
+      const wob = Math.sin(v.t * (v.t > v.hatch - 1.5 ? 14 : 5)) * (v.t > v.hatch - 1.5 ? .2 : .08);
+      ctx.translate(v.x, v.y); ctx.rotate(wob); drawEgg(v.s, Math.max(0, (v.t - (v.hatch - 1.5)) / 1.5), 0);
+      if (v.t + dt >= v.hatch) { SND.crack(); burst('spark', v.x, v.y - v.s, 10, v.s * .25, 120); pops.push({x: v.x, y: v.y - v.s * 2.2, a: 1, text: 'うまれた！'}); }
+      return true;
+    }
+    const age = v.t - v.hatch, grow = Math.min(1, age * 3), walking = age > 1.6;
+    if (walking) { v.hx += v.dir * 70 * dt; }
+    const jump = P >= 0 ? -Math.sin(P * Math.PI) * v.s * 1.2 : 0;
+    ctx.save(); ctx.translate(v.x, v.y); drawEgg(v.s, 1, 1); ctx.restore(); // broken shell stays
+    const bw = v.s * 2.1 * grow, bh = bw * DSPR.baby.height / DSPR.baby.width;
+    ctx.translate(v.x + v.hx, v.y - (walking ? Math.abs(Math.sin(age * 9)) * v.s * .15 : 0) + jump); ctx.scale(v.dir, 1);
+    ctx.drawImage(DSPR.baby, -bw / 2, -bh, bw, bh);
+    ctx.fillStyle = '#fff8e8'; ctx.strokeStyle = '#b89a6a'; ctx.lineWidth = 3; // shell hat
+    ctx.beginPath(); ctx.moveTo(bw * .06, -bh * .98); ctx.lineTo(bw * .14, -bh * 1.12); ctx.lineTo(bw * .22, -bh * 1.0); ctx.lineTo(bw * .3, -bh * 1.13); ctx.lineTo(bw * .38, -bh * .96); ctx.quadraticCurveTo(bw * .22, -bh * .86, bw * .06, -bh * .98); ctx.fill(); ctx.stroke();
+    const bx = v.x + v.hx; return bx > -bw && bx < W + bw;
+  }
+  if (v.kind === 'star') {
+    v.x += v.vx * dt; v.y += v.vy * dt;
+    v.trail.push([v.x, v.y]); if (v.trail.length > 24) v.trail.shift();
+    ctx.lineCap = 'round';
+    v.trail.forEach(([a, b], i) => { ctx.strokeStyle = `rgba(255,250,200,${i / v.trail.length * .7})`; ctx.lineWidth = 2 + i * .25; if (i) { ctx.beginPath(); ctx.moveTo(...v.trail[i - 1]); ctx.lineTo(a, b); ctx.stroke(); } });
+    ctx.translate(v.x, v.y); ctx.rotate(v.t * 3); ctx.fillStyle = '#fff6a0'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 20;
+    const r = Math.min(W, H) * .03; ctx.beginPath(); for (let k = 0; k < 10; k++) { const rr = k % 2 ? r * .45 : r; ctx.lineTo(Math.cos(k * Math.PI / 5) * rr, Math.sin(k * Math.PI / 5) * rr); } ctx.fill();
+    return v.x > -60 && v.y < GROUND() - 40;
+  }
+  return false;
+}
+function drawPtera(s, ph) {
+  const f = Math.sin(ph), b = '#c98bd9', l = '#5b2a6b';
+  ctx.fillStyle = b; ctx.strokeStyle = l; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+  for (const side of [-1, 1]) { // wings (far one darker)
+    ctx.fillStyle = side < 0 ? '#a86cbb' : b;
+    ctx.beginPath(); ctx.moveTo(-s * .3, 0); ctx.quadraticCurveTo(-s * .2, side * f * s * 1.2 - s * .3, -s * .1, side * f * s * 1.8 - s * .2); ctx.lineTo(s * .4, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.fillStyle = b; ctx.beginPath(); ctx.ellipse(0, 0, s * .55, s * .2, 0, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s * .45, -s * .15); ctx.lineTo(s * 1.15, s * .02); ctx.lineTo(s * .45, s * .1); ctx.closePath(); ctx.fillStyle = '#f2c14e'; ctx.fill(); ctx.stroke();
+  ctx.fillStyle = b; ctx.beginPath(); ctx.moveTo(s * .4, -s * .12); ctx.lineTo(s * .05, -s * .45); ctx.lineTo(s * .3, -s * .05); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(s * .52, -s * .05, s * .05, 0, 7); ctx.fill();
+}
+function drawEgg(s, crack, broken) {
+  ctx.fillStyle = '#fff8e8'; ctx.strokeStyle = '#b89a6a'; ctx.lineWidth = 4;
+  if (broken) { ctx.beginPath(); ctx.moveTo(-s * .75, -s * .7); ctx.lineTo(-s * .45, -s * .95); ctx.lineTo(-s * .2, -s * .7); ctx.lineTo(s * .1, -s * .98); ctx.lineTo(s * .4, -s * .72); ctx.lineTo(s * .75, -s * .9); ctx.quadraticCurveTo(s * .8, 0, 0, 0); ctx.quadraticCurveTo(-s * .8, 0, -s * .75, -s * .7); ctx.fill(); ctx.stroke(); }
+  else { ctx.beginPath(); ctx.ellipse(0, -s * .9, s * .75, s * .95, 0, 0, 7); ctx.fill(); ctx.stroke(); }
+  ctx.fillStyle = '#9bd17a'; for (const [a, b, r] of [[-.3, -1.3, .14], [.3, -.8, .18], [-.35, -.5, .12], [.2, -1.5, .1]]) { if (broken && b < -.75) continue; ctx.beginPath(); ctx.arc(a * s, b * s, r * s, 0, 7); ctx.fill(); }
+  if (crack > 0 && !broken) { ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-s * .7, -s * .9); const n = 1 + Math.floor(crack * 5); for (let k = 1; k <= n; k++) ctx.lineTo(-s * .7 + k * s * .28, -s * .9 + (k % 2 ? -1 : 1) * s * .14); ctx.stroke(); }
+}
+function tapDino(px, py, smallOnly) {
+  const inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
+  const start = (v, d) => { if (v.act > 0) return false; v.act = d; v.actDur = d; SND.visitor(v.kind); return true; };
+  for (let i = visitors.length - 1; i >= 0; i--) {
+    const v = visitors[i];
+    if (smallOnly && WALKERS[v.kind]) continue;
+    if (WALKERS[v.kind]) {
+      if (inBox(v.x, v.y - v.h / 2, v.w * .9, v.h) && start(v, v.kind === 'trex' ? 1.6 : 1.5)) {
+        const say = {trex: 'ガオー！', brachio: 'ブオ〜', stego: 'ピカーン', tricera: 'ドドドッ'}[v.kind];
+        pops.push({x: v.x, y: v.y - v.h * 1.05, a: 1, text: say});
+        if (v.kind === 'trex') shake = 14;
+        if (v.kind === 'brachio') burst('heart', v.x + v.dir * v.w * .4, v.y - v.h * .9, 6, v.w * .03, 90);
+        if (v.kind === 'stego') burst('spark', v.x, v.y - v.h * .8, 12, v.w * .03, 160);
+        return true;
+      }
+    } else if (v.kind === 'ptera') {
+      for (const b of v.list) if (Math.hypot(v.x + b.dx * v.dir - px, v.y + b.dy - py) < v.s * 1.6 + 20 && start(v, 1.8)) { pops.push({x: v.x, y: v.y - v.s * 2, a: 1, text: 'キーッ！'}); return true; }
+    } else if (v.kind === 'egg') {
+      if (v.t < v.hatch && inBox(v.x, v.y - v.s, v.s * 1.6, v.s * 2)) { v.hatch = v.t + .01; return true; }
+      if (v.t >= v.hatch && inBox(v.x + v.hx, v.y - v.s, v.s * 2.4, v.s * 2) && start(v, .9)) { burst('heart', v.x + v.hx, v.y - v.s * 2, 5, v.s * .2, 80); return true; }
+    } else if (v.kind === 'star') {
+      if (Math.hypot(v.x - px, v.y - py) < Math.min(W, H) * .08 + 20 && start(v, 1)) { burst('spark', v.x, v.y, 18, Math.min(W, H) * .015, 200); pops.push({x: v.x, y: v.y + 40, a: 1, text: 'ねがいごと☆'}); return true; }
+    }
+  }
+  return false;
+}
+
+/* ---------- the volcano: drawings older than LIFE get blasted into the sky ---------- */
+function checkVolcano() {
+  const due = expired();
+  for (const c of due) if (!c.launch) c.fear = true;
+  if (!erupt && due.some(c => !c.launch)) { erupt = {t: 0, boom: false}; SND.rumble(); }
+}
+function updateVolcano(dt) {
+  if (erupt) {
+    erupt.t += dt;
+    if (erupt.t < 1.8) shake = Math.max(shake, 3 + erupt.t * 3);
+    const V = dinoScene.vol, top = GROUND() - V.h;
+    if (erupt.t >= 1.8 && !erupt.boom) {
+      erupt.boom = true; shake = 18; SND.boom();
+      pops.push({x: V.x, y: top - V.h * .25, a: 1, text: 'ドカーン！'});
+      for (let k = 0; k < 46; k++) lava.push({x: V.x + (Math.random() - .5) * V.w * .1, y: top, vx: (Math.random() - .5) * 420, vy: -(380 + Math.random() * 520), r: 5 + Math.random() * 10});
+    }
+    if (erupt.boom) { // launch everything that is due (also ones that come due a moment later)
+      for (const c of expired()) if (!c.launch) {
+        c.fear = false; c.launch = {vx: (c.x < V.x ? -1 : 1) * (60 + Math.random() * 160), vy: -(950 + Math.random() * 350), rot: 0};
+        c.jump = 0; SND.whee();
+      }
+      if (erupt.t > 5 && !expired().some(c => !c.launch)) erupt = null;
+    }
+  }
+  for (let i = lava.length - 1; i >= 0; i--) {
+    const l = lava[i]; l.vy += 700 * dt; l.x += l.vx * dt; l.y += l.vy * dt;
+    if (l.y > GROUND() + 10) { lava.splice(i, 1); continue; }
+    ctx.fillStyle = '#ff7a2a'; ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(l.x, l.y, l.r, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+  }
+}
+function updateLaunched(c, dt) { // returns false once it has flown away
+  const L = c.launch; L.vy += 260 * dt; c.x += L.vx * dt; c.y += L.vy * dt; L.rot += dt * 9 * Math.sign(L.vx || 1);
+  if (Math.random() < .5) fx.push({k: 'spark', x: c.x, y: c.y + c.h * .3, vx: 0, vy: 30, a: .8, s: c.w * .06});
+  if (c.y + c.h < 0) { pops.push({x: c.x, y: 40, a: 1, text: 'キラーン☆'}); SND.twinkle(); return false; }
+  return c.x > -c.w * 2 && c.x < W + c.w * 2;
+}
+
+/* ---------- dinosaur samples ---------- */
+const dinoSamples = [
+  ['見本：みどりのきょうりゅう', crayon(x => {
+    x.fillStyle = '#7cc957'; x.strokeStyle = '#2f6a1f'; x.lineWidth = 6;
+    x.beginPath(); x.moveTo(60, 120); x.quadraticCurveTo(20, 130, 4, 160); x.quadraticCurveTo(40, 100, 80, 95); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.ellipse(120, 120, 65, 45, -.1, 0, 7); x.fill(); x.stroke();
+    x.beginPath(); x.ellipse(195, 70, 42, 32, 0, 0, 7); x.fill(); x.stroke();
+    for (const a of [95, 140]) { x.beginPath(); x.rect(a - 12, 150, 24, 34); x.fill(); x.stroke(); }
+    x.fillStyle = '#f2c14e'; for (let k = 0; k < 4; k++) { x.beginPath(); x.moveTo(80 + k * 25, 82 - k * 2); x.lineTo(92 + k * 25, 62 - k * 3); x.lineTo(104 + k * 25, 80 - k * 3); x.fill(); }
+    x.fillStyle = '#222'; x.beginPath(); x.arc(208, 62, 7, 0, 7); x.fill();
+    x.strokeStyle = '#2f6a1f'; x.lineWidth = 4; x.beginPath(); x.arc(220, 78, 10, .2, 1.3); x.stroke();
+  }, 245, 190), {mode: 'swim'}],
+  ['見本：プテラノドン', crayon(x => {
+    x.fillStyle = '#ff9fb0'; x.strokeStyle = '#8a3c4f'; x.lineWidth = 6;
+    x.beginPath(); x.moveTo(110, 90); x.lineTo(20, 20); x.lineTo(70, 110); x.lineTo(150, 110); x.lineTo(230, 25); x.lineTo(140, 90); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.ellipse(125, 105, 40, 18, 0, 0, 7); x.fill(); x.stroke();
+    x.beginPath(); x.moveTo(155, 95); x.lineTo(215, 110); x.lineTo(155, 115); x.fill(); x.stroke();
+    x.beginPath(); x.moveTo(150, 95); x.lineTo(125, 70); x.lineTo(145, 100); x.fill(); x.stroke();
+    x.fillStyle = '#222'; x.beginPath(); x.arc(162, 102, 5, 0, 7); x.fill();
+  }, 240, 140), {mode: 'float'}],
+  ['見本：あかちゃん', DSPR.baby, {mode: 'hop', small: true}],
+];
+
+/* ---------- switching worlds ---------- */
+function setWorld(w) {
+  WORLD = w; try { localStorage.setItem('suisui-world', w); } catch (_) {}
+  visitors.length = 0; shark = null; erupt = null; lava.length = 0; bubbles.length = 0; fx.length = 0;
+  nextVisit = clock + 6;
+  for (let i = creatures.length - 1; i >= 0; i--) { const c = creatures[i]; if (!c.user) creatures.splice(i, 1); else { c.fear = false; c.launch = null; } }
+  (w === 'dino' ? dinoSamples : samples).forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));
+  buildScenery(); renderList(); showWorld();
+}
+function showWorld() {
+  const dino = WORLD === 'dino';
+  document.getElementById('desc').textContent = dino
+    ? 'スキャンした絵や写真を入れると、白い紙の部分を消して恐竜の世界で動きだします。タッチするとジャンプします。30秒ごとにお客さん（ティラノサウルス、プテラノドン、トリケラトプスなど）が通りかかります。入れた絵は3分たつと火山が噴火して飛んでいきます。'
+    : 'スキャンした絵や写真を入れると、白い紙の部分を消して水槽で泳ぎます。お魚をタッチするとジャンプして逃げます。水をタッチすると近くのお魚が見に来ます。30秒ごとにお客さん（マンボウ、カニ、マンタなど）が通りかかります。入れた絵は3分たつとサメが食べに来ます。';
+  document.getElementById('worldBtn').textContent = dino ? '🌊 うみへ' : '🦖 きょうりゅうへ';
+  document.documentElement.dataset.world = WORLD;
+}
+document.getElementById('worldBtn').onclick = () => { SND.init(); setWorld(WORLD === 'dino' ? 'sea' : 'dino'); SND.arrive(); };
+
 resize();
-samples.forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));
+(WORLD === 'dino' ? dinoSamples : samples).forEach(([n, img, o]) => addCreature(img, n, {...o, scale: o.small ? .14 : .18}));
+showWorld();
 requestAnimationFrame(loop);
 })();
 </script>

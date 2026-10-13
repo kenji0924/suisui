@@ -768,8 +768,13 @@ function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
   const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'starprince', 'hakuba', 'yusha', 'aladdin', 'mice', 'majo', 'fairy', 'swans', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio', 'mermaid', 'submarine']).filter(k => k !== lastKind);
-  lastKind = FORCE && clock < 5 ? FORCE : kinds[Math.floor(Math.random() * kinds.length)];
+  // secret sea guests only come once enough of your own drawings are swimming (samples, guests and the shark don't count)
+  const SECRET = {oarfish: 1, kappa: 2, plesio: 3, submarine: 4, mermaid: 5};
+  const mine = creatures.filter(c => c.user && !c.ascend && !c.launch).length;
+  const pool = WORLD === 'sea' ? kinds.filter(k => mine >= (SECRET[k] || 0)) : kinds;
+  lastKind = FORCE && clock < 5 ? FORCE : pool[Math.floor(Math.random() * pool.length)];
   spawnVisitor(lastKind); SND.arrive();
+  if (WORLD === 'sea' && SECRET[lastKind]) { pops.push({x: W / 2, y: H * .15, a: 1, text: 'ひみつの おきゃくさん！'}); SND.twinkle(); }
 }
 function sandY(x) { return H * .9 + Math.sin(x * .012) * 8; }
 function eelPoints(e, face, t) {

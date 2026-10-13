@@ -539,7 +539,7 @@ const SND = (() => {
         case 'carriage': for (let i = 0; i < 6; i++) noise(i * .17, .05, .5, 2600, 1900, 3); tone('sine', [900, 1400], .3, .25, .1); tone('sine', [1400, 800], .55, .5, .1); break;
         case 'unicorn':  [72, 76, 79, 84, 88, 91, 96, 100].forEach((m, i) => tone('sine', hz(m), i * .06, .9, .08)); break;
         case 'fairy':    [96, 100, 103, 108, 103, 108, 112].forEach((m, i) => tone('sine', hz(m), i * .05, .4, .07)); break;
-        case 'swans':    tone('sine', [800, 600], 0, .15, .12); tone('sine', [800, 600], .2, .15, .12); [84, 88, 91, 96].forEach((m, i) => tone('sine', hz(m), .45 + i * .1, .6, .08)); break;
+        case 'angel':    [72, 76, 79, 84, 88, 91, 96, 100, 103].forEach((m, k) => tone('triangle', hz(m), k * .05, .9, .07)); [96, 103, 108].forEach((m, k) => tone('sine', hz(m), .6 + k * .15, .8, .07)); break;
         case 'dragon':   tone('sawtooth', [200, 320], 0, .45, .06, sfxBus, .05); tone('sine', [300, 520], 0, .45, .2); [91, 96, 100].forEach((m, i) => tone('sine', hz(m), .5 + i * .08, .5, .08)); break;
         case 'starprince': [96, 100, 103, 108, 112, 108, 103, 108].forEach((m, i) => tone('sine', hz(m), i * .09, .6, .07)); break;
         case 'yusha':    [67, 72, 76, 79, 84].forEach((m, k) => { tone('sawtooth', hz(m), k * .13, .3, .06, sfxBus, .02); tone('square', hz(m), k * .13, .25, .04, sfxBus, .02); }); tone('sine', [2400, 3200], .7, .4, .06); break;
@@ -767,7 +767,7 @@ function spawnVisitor(kind) {
 function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
-  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'starprince', 'hakuba', 'yusha', 'aladdin', 'mice', 'majo', 'fairy', 'swans', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio', 'mermaid', 'submarine']).filter(k => k !== lastKind);
+  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'starprince', 'hakuba', 'yusha', 'aladdin', 'mice', 'majo', 'fairy', 'angel', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio', 'mermaid', 'submarine']).filter(k => k !== lastKind);
   // secret sea guests only come once enough of your own drawings are swimming (samples, guests and the shark don't count)
   const SECRET = {oarfish: 1, kappa: 2, plesio: 3, submarine: 4, mermaid: 5};
   const mine = creatures.filter(c => c.user && !c.ascend && !c.launch).length;
@@ -1155,6 +1155,10 @@ function drawFx(dt) {
       ctx.rotate(f.ph * .5); ctx.beginPath(); ctx.arc(0, 0, f.s * .45, 0, 7); ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, f.s * .18); ctx.lineCap = 'round'; ctx.beginPath();
       for (let k = 0; k < 6; k++) { ctx.moveTo(0, 0); ctx.lineTo(Math.cos(k * Math.PI / 3) * f.s, Math.sin(k * Math.PI / 3) * f.s); } ctx.stroke();
+    } else if (f.k === 'feather') { // drifts down, rocking side to side
+      f.ph = (f.ph || 0) + dt * 3; f.vy = Math.max(f.vy, 40); f.x += Math.sin(f.ph) * 30 * dt; ctx.rotate(Math.sin(f.ph) * .6);
+      ctx.fillStyle = '#ffffff'; ctx.strokeStyle = 'rgba(150,170,210,.8)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(0, 0, f.s * .45, f.s * 1.1, 0, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -f.s * 1.1); ctx.lineTo(0, f.s * 1.3); ctx.stroke();
     } else if (f.k === 'leaf') {
       f.ph += dt * 8; ctx.rotate(f.ph); ctx.fillStyle = '#7fbf4a'; ctx.beginPath(); ctx.ellipse(0, 0, f.s, f.s * .45, 0, 0, 7); ctx.fill();
     } else if (f.k === 'fire' || f.k === 'foxfire') {
@@ -3691,22 +3695,30 @@ function drawFairy(x, s, t = 0) { // centred
   x.fillStyle = '#3a2a2a'; for (const ex of [-.02, .05]) { x.beginPath(); x.arc(ex * s, -s * .23, s * .013, 0, 7); x.fill(); }
   x.fillStyle = 'rgba(255,130,160,.5)'; x.beginPath(); x.arc(s * .07, -s * .2, s * .016, 0, 7); x.fill();
 }
-function drawSwan(x, s, t = 0) { // flying, centred
-  const lw = Math.max(1.5, s * .02), flap = Math.sin(t * 5);
-  x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw; x.fillStyle = '#f4f4fb'; x.strokeStyle = '#9aa0c0';
-  const wing = (k) => { const f = (.35 + .65 * flap) * k; // a broad feathered wing raised over the back
-    x.beginPath(); x.moveTo(s * .14, -s * .06); x.quadraticCurveTo(s * .08, -s * .42 * f, -s * .22, -s * .52 * f);
-    for (let i = 0; i < 3; i++) { const u = (i + 1) / 3; x.quadraticCurveTo(-s * (.24 - u * .02), -s * (.52 - u * .2) * f + s * .05, -s * (.22 - u * .02), -s * (.52 - u * .45) * f); }
-    x.lineTo(-s * .2, -s * .02); x.closePath(); x.fill(); x.stroke(); };
-  wing(.7);
-  x.beginPath(); x.ellipse(0, 0, s * .3, s * .12, 0, 0, 7); x.fill(); x.stroke();
-  x.beginPath(); x.moveTo(-s * .28, -s * .02); x.lineTo(-s * .4, -s * .08); x.lineTo(-s * .36, s * .04); x.closePath(); x.fill(); x.stroke();
-  x.strokeStyle = '#9aa0c0'; x.lineWidth = s * .075; x.beginPath(); x.moveTo(s * .2, -s * .03); x.quadraticCurveTo(s * .36, -s * .06, s * .46, -s * .1); x.stroke();
-  x.strokeStyle = '#f4f4fb'; x.lineWidth = s * .055; x.stroke();
-  x.lineWidth = lw; x.strokeStyle = '#9aa0c0'; x.beginPath(); x.arc(s * .5, -s * .11, s * .055, 0, 7); x.fill(); x.stroke();
-  x.fillStyle = '#ff9a3c'; x.beginPath(); x.moveTo(s * .54, -s * .13); x.lineTo(s * .63, -s * .1); x.lineTo(s * .54, -s * .085); x.closePath(); x.fill();
-  x.fillStyle = '#222'; x.beginPath(); x.arc(s * .515, -s * .125, s * .012, 0, 7); x.fill();
-  x.fillStyle = '#f4f4fb'; wing(1);
+function drawAngel(x, s, t = 0, glow = 0) { // a little angel with a halo and feathered wings; centred
+  const lw = Math.max(1.5, s * .02), flap = Math.sin(t * 7);
+  x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
+  const wing = (k) => { // k = -1 back wing, 1 front wing
+    x.save(); x.translate(-s * .06, -s * .1); x.rotate(-.3 - flap * .35 * (k < 0 ? .8 : 1)); x.scale(k < 0 ? .85 : 1, 1);
+    x.fillStyle = k < 0 ? '#eef2fb' : '#ffffff'; x.strokeStyle = '#9aaad0';
+    x.beginPath(); x.moveTo(0, 0); x.quadraticCurveTo(-s * .1, -s * .38, -s * .38, -s * .32);
+    for (let i = 0; i < 4; i++) { const u = (i + 1) / 4; x.quadraticCurveTo(-s * (.42 - u * .06), -s * (.3 - u * .32) + s * .04, -s * (.38 - u * .26), -s * (.32 - u * .38)); }
+    x.closePath(); x.fill(); x.stroke(); x.restore();
+  };
+  wing(-1);
+  x.fillStyle = '#fffdf2'; x.strokeStyle = '#c9b88a'; // robe
+  x.beginPath(); x.moveTo(-s * .07, -s * .1); x.lineTo(s * .07, -s * .1); x.quadraticCurveTo(s * .16, s * .12, s * .14, s * .26); x.quadraticCurveTo(0, s * .3, -s * .14, s * .26); x.quadraticCurveTo(-s * .16, s * .12, -s * .07, -s * .1); x.fill(); x.stroke();
+  x.strokeStyle = '#ffd84a'; x.lineWidth = s * .025; x.beginPath(); x.moveTo(-s * .09, s * .02); x.quadraticCurveTo(0, s * .05, s * .09, s * .02); x.stroke(); x.lineWidth = lw; // golden sash
+  x.fillStyle = '#ffe2cf'; x.strokeStyle = '#d29a80'; for (const k of [-1, 1]) { x.beginPath(); x.ellipse(k * s * .05, s * .3, s * .03, s * .02, 0, 0, 7); x.fill(); x.stroke(); } // toes
+  x.strokeStyle = '#ffe2cf'; x.lineWidth = s * .04; x.beginPath(); x.moveTo(s * .05, -s * .06); x.quadraticCurveTo(s * .14, -s * (.02 + glow * .1), s * .17, -s * (.08 + glow * .14)); x.stroke(); x.lineWidth = lw; // arm
+  x.fillStyle = '#ffe2cf'; x.strokeStyle = '#d29a80'; x.beginPath(); x.arc(0, -s * .22, s * .12, 0, 7); x.fill(); x.stroke(); // head
+  x.fillStyle = '#ffd45a'; x.strokeStyle = '#c99a1e'; for (const [a, b] of [[-.1, -.28], [-.05, -.33], [.02, -.34], [.08, -.31], [.11, -.25], [-.12, -.21]]) { x.beginPath(); x.arc(a * s, b * s, s * .045, 0, 7); x.fill(); x.stroke(); } // curls
+  x.fillStyle = '#3a2a2a'; for (const ex of [-.035, .05]) { x.beginPath(); x.arc(ex * s, -s * .21, s * .013, 0, 7); x.fill(); }
+  x.fillStyle = 'rgba(255,130,160,.55)'; for (const ex of [-.07, .085]) { x.beginPath(); x.arc(ex * s, -s * .17, s * .02, 0, 7); x.fill(); }
+  x.strokeStyle = '#c2457f'; x.lineWidth = Math.max(1.5, s * .012); x.beginPath(); x.arc(s * .01, -s * .175, s * .025, .3, Math.PI - .3); x.stroke(); x.lineWidth = lw;
+  x.save(); x.shadowColor = '#fff3a0'; x.shadowBlur = s * (.08 + glow * .2); x.strokeStyle = '#ffd84a'; x.lineWidth = s * (.03 + glow * .01); // halo
+  x.beginPath(); x.ellipse(0, -s * .42, s * (.1 + glow * .02), s * .03, 0, 0, 7); x.stroke(); x.restore();
+  wing(1);
 }
 function drawDragon(x, s, t = 0, breath = 0) { // a chubby friendly dragon, flying, centred
   const lw = Math.max(2, s * .018), flap = Math.sin(t * 6);
@@ -3863,7 +3875,7 @@ function spawnPrincess(kind) {
   else if (kind === 'mice') add({s: m * .14, x: from(m * .12), y: G});
   else if (kind === 'majo') add({s: m * .32, x: from(m * .2), y: G - m * .04});
   else if (kind === 'fairy') add({s: m * .15, x: from(m * .12), y: H * (.3 + Math.random() * .2)});
-  else if (kind === 'swans') add({s: m * .23, x: from(m * .2), y: H * (.18 + Math.random() * .12)});
+  else if (kind === 'angel') add({s: m * .2, x: from(m * .15), y: H * (.22 + Math.random() * .12)});
   else if (kind === 'dragon') add({s: m * .26, x: from(m * .2), y: H * (.25 + Math.random() * .15)});
   else if (kind === 'butterflies') {
     const list = Array.from({length: 7}, (_, i) => ({dx: -i * m * .07 - Math.random() * m * .04, dy: (Math.random() - .5) * m * .25, ph: Math.random() * 6, c: i % 4, ox: 0, oy: 0, sx: 0, sy: 0}));
@@ -4011,12 +4023,13 @@ function drawPrincessVisitor(v, dt, P) {
       ctx.translate(v.hx, v.hy); ctx.scale(v.dir, 1); ctx.rotate(Math.sin(v.t * 3) * .1); drawFairy(ctx, s, v.t);
       return !gone(s);
     }
-    case 'swans': {
-      v.x += v.dir * (act ? 20 : 65) * dt; v.y += Math.sin(v.t * 1.2) * 10 * dt;
-      const love = act ? Math.sin(P * Math.PI) : 0;
-      for (const [dx, dy, ph] of [[-1, .45, 1.3], [0, 0, 0]]) { ctx.save(); ctx.translate(v.x + v.dir * dx * s * (1 - love * .3), v.y + dy * s * (1 - love)); ctx.scale(v.dir, 1); drawSwan(ctx, s, v.t + ph); ctx.restore(); }
-      if (love > 0) { ctx.fillStyle = '#ff7aa8'; ctx.shadowColor = '#ffb3d9'; ctx.shadowBlur = 16; heartPath(ctx, v.x - v.dir * s * .15, v.y - s * .55, s * .45 * love); ctx.fill(); ctx.shadowBlur = 0; }
-      return !gone(s * 2);
+    case 'angel': { // flutters across; tap -> hearts and feathers rain down on every drawing
+      v.x += v.dir * (act ? 15 : 60) * dt; const by = Math.sin(v.t * 2.2) * s * .15;
+      v.hy = v.y + by;
+      if (Math.random() < dt * 3) fx.push({k: 'spark', x: v.x + (Math.random() - .5) * s * .5, y: v.hy + s * .3, vx: 0, vy: 20, a: .7, s: s * .05});
+      if (act && P < .75 && Math.random() < .5) { const c = creatures[Math.floor(Math.random() * creatures.length)]; if (c) fx.push({k: Math.random() < .5 ? 'heart' : 'feather', x: c.x + (Math.random() - .5) * c.w, y: c.y - c.h * .9, vx: (Math.random() - .5) * 30, vy: 70, a: 1.3, s: s * (.06 + Math.random() * .04), ph: Math.random() * 6}); }
+      ctx.translate(v.x, v.hy); ctx.scale(v.dir, 1); drawAngel(ctx, s, v.t, act ? Math.sin(Math.min(1, P * 3) * Math.PI / 2) : 0);
+      return !gone(s);
     }
     case 'dragon':
       v.x += v.dir * (act ? 12 : 55) * dt; v.y += Math.sin(v.t * 1.4) * 20 * dt;
@@ -4069,7 +4082,7 @@ function tapPrincess(px, py) {
       case 'mice': { const mid = v.x - v.dir * s * 1.1; if (inBox(mid, G - s * .5, s * 3.4, s * 1.1) && start(v, 2.4, 'パンパカパーン♪', mid, G - s * 1.7)) return true; break; }
       case 'majo': if (inBox(v.x, v.y - s * .45, s * .6, s, 25) && start(v, 2.2, 'ちちんぷいぷい〜！', v.x, v.y - s * 1.2)) { for (const c of creatures) { c.crown = 12; burst('spark', c.x, c.y - c.h * .6, 5, c.w * .06, 80); } return true; } break;
       case 'fairy': if (inBox(v.hx ?? v.x, v.hy ?? v.y, s * 1.2, s * 1.4, 30) && start(v, 1.8, 'キラキラ〜☆', v.hx ?? v.x, (v.hy ?? v.y) - s)) { for (const c of creatures) { c.jump = 1; burst('spark', c.x, c.y, 8, c.w * .06, 140); } return true; } break;
-      case 'swans': if (inBox(v.x - v.dir * s * .5, v.y + s * .2, s * 2.2, s * 1.2) && start(v, 2.4, 'ハート♡', v.x - v.dir * s * .15, v.y - s * 1.2)) { burst('heart', v.x - v.dir * s * .15, v.y - s * .4, 8, s * .12, 150); return true; } break;
+      case 'angel': if (inBox(v.x, v.hy ?? v.y, s * 1.1, s * 1.1, 25) && start(v, 3, 'しあわせに なあれ♡', v.x, (v.hy ?? v.y) - s * .8)) { burst('heart', v.x, v.hy ?? v.y, 8, s * .1, 150); return true; } break;
       case 'dragon': if (inBox(v.x, v.y, s * .9, s * .7) && start(v, 2, 'ハートの ほのお〜！', v.x, v.y - s * .8)) return true; break;
       case 'butterflies': if (v.list.some(b => b.px !== undefined && Math.hypot(px - b.px, py - b.py) < s * 1.5) && start(v, 2.5, 'ひらひら〜', px, py - s * 2)) return true; break;
     }

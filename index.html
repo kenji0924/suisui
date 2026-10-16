@@ -228,13 +228,14 @@ function buildScenery() {
   rocks = Array.from({length: Math.round(n * .8)}, () => ({
     x: Math.random() * W, r: 14 + Math.random() * 30, s: 30 + Math.random() * 20
   }));
-  dinoScene = null; ykScene = null; prScene = null; // rebuilt for the new size on the next frame
+  dinoScene = null; ykScene = null; prScene = null; deepScene = null; // rebuilt for the new size on the next frame
 }
 const bubbles = [];
 function drawBackground(t) {
   if (WORLD === 'dino') return drawDinoBackground(t);
   if (WORLD === 'yokai') return drawYokaiBackground(t);
   if (WORLD === 'princess') return drawPrincessBackground(t);
+  if (DEEP) return drawDeepBackground(t, frameDt);
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#1580a0'); g.addColorStop(.45, '#0b4d6c'); g.addColorStop(1, '#06243b');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -390,8 +391,9 @@ function draw(c, t) {
   }
 }
 let last = performance.now();
+let frameDt = 0;
 function loop(t) {
-  const dt = Math.min(.05, (t - last) / 1000); last = t;
+  const dt = Math.min(.05, (t - last) / 1000); last = t; frameDt = dt;
   clock += dt * FAST;
   ctx.save();
   if (shake > .3) { ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake); shake *= Math.pow(.02, dt); } // stomps / eruptions
@@ -410,7 +412,7 @@ function loop(t) {
   }
   drawVisitors(dt, 'front'); drawFx(dt);
   if (WORLD === 'dino') updateVolcano(dt); else if (WORLD === 'yokai') updateDawn(dt); else if (WORLD === 'princess') updateMidnight(dt); else updateShark(dt);
-  drawRipples(dt); drawBubbles(dt); drawPops(dt);
+  drawRipples(dt); drawBubbles(dt); drawDiveHint(); drawPops(dt); updateDive(dt);
   ctx.restore();
   requestAnimationFrame(loop);
 }
@@ -458,7 +460,7 @@ const SND = (() => {
   function scheduleBgm() {
     if (!ac || !on) { if (ac) nextT = ac.currentTime + .1; return; }
     const dino = WORLD === 'dino', yk = WORLD === 'yokai';
-    lp.frequency.value = WORLD === 'sea' ? 2600 : 7000; // under water the music is muffled
+    lp.frequency.value = WORLD === 'sea' ? (DEEP ? 1100 : 2600) : 7000; // under water the music is muffled
     while (nextT < ac.currentTime + .4) {
       const at = nextT - ac.currentTime, bar = Math.floor(step / 8) % 4, s8 = step % 8;
       if (WORLD === 'princess') { // a music-box waltz in 3/4: bass on 1, soft chords on 2 and 3, celesta melody
@@ -526,6 +528,13 @@ const SND = (() => {
         case 'plesio':   tone('sine', [300, 520], 0, .6, .25, sfxBus, .05); tone('sine', [520, 380], .55, .8, .22, sfxBus, .05); tone('triangle', [600, 1040], 0, .6, .05); break;
         case 'mermaid':  [72, 76, 79, 84, 81, 79, 76, 79, 72].forEach((m, i) => { tone('sine', hz(m), i * .3, .5, .12, sfxBus, .05); tone('sine', hz(m) * 1.004, i * .3, .5, .05, sfxBus, .05); }); break;
         case 'submarine': for (let i = 0; i < 3; i++) tone('sine', 1480, i * .55, .9 - i * .2, .2 / (i + 1), sfxBus, .005); tone('sine', [300, 200], 0, .4, .1); break;
+        case 'angler':   tone('sine', [200, 1600], 0, .5, .12); [96, 103, 108].forEach((m, i) => tone('sine', hz(m), .4 + i * .08, .6, .08)); break;
+        case 'mendako':  tone('sine', [300, 700], 0, .5, .15); tone('sine', [700, 500], .5, .4, .1); break;
+        case 'gusoku':   for (let i = 0; i < 5; i++) tone('triangle', [500 - i * 60, 300 - i * 40], i * .1, .1, .12); break;
+        case 'takaashi': for (let i = 0; i < 4; i++) noise(i * .18, .06, .45, 3000, 2200, 5); tone('sine', [200, 150], 0, .6, .15); break;
+        case 'demenigisu': tone('sine', [600, 1200], 0, .15, .12); tone('sine', [1200, 900], .2, .3, .1); break;
+        case 'daiouika': noise(0, .6, .6, 1800, 250, .7); tone('sine', [120, 60], 0, .6, .25); break;
+        case 'hotaruika': [91, 95, 98, 103, 107, 110].forEach((m, i) => tone('sine', hz(m), i * .07, .6, .06)); break;
         case 'kappa':    tone('square', [500, 1100], 0, .12, .15); tone('square', [700, 1300], .14, .12, .15); [0, 1, 2].forEach(i => tone('sine', [900, 1600], .3 + i * .05, .08, .1)); break;
         case 'seahorse': [72, 76, 79, 84, 79, 84].forEach((m, i) => { tone('sawtooth', hz(m), i * .28, .25, .09, sfxBus, .03); tone('square', hz(m), i * .28, .22, .05, sfxBus, .03); }); break; // trumpet tune
         case 'manta':    noise(0, 1.2, .35, 300, 1800, .8); tone('sine', [300, 600], .2, .9, .08); break;
@@ -709,6 +718,7 @@ function spawnVisitor(kind) {
   if (WORLD === 'dino') return spawnDino(kind);
   if (WORLD === 'yokai') return spawnYokai(kind);
   if (WORLD === 'princess') return spawnPrincess(kind);
+  if (DEEP_KINDS.includes(kind)) return spawnDeep(kind);
   const m = Math.min(W, H), side = Math.random() < .5 ? 1 : -1; // 1 = enters from the left
   if (kind === 'eels') { // garden eels pop out of the sand, sway, then hide again
     const n = 6 + Math.floor(Math.random() * 3), cx = W * (.25 + Math.random() * .5), span = Math.min(W * .6, m * 1.1);
@@ -781,7 +791,7 @@ function spawnVisitor(kind) {
 function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
-  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'starprince', 'hakuba', 'yusha', 'aladdin', 'mice', 'majo', 'fairy', 'angel', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio', 'mermaid', 'submarine']).filter(k => k !== lastKind);
+  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'starprince', 'hakuba', 'yusha', 'aladdin', 'mice', 'majo', 'fairy', 'angel', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : DEEP ? DEEP_KINDS : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'oarfish', 'seahorse', 'manta', 'clione', 'kappa', 'plesio', 'mermaid', 'submarine']).filter(k => k !== lastKind);
   // secret sea guests only come once enough of your own drawings are swimming (samples, guests and the shark don't count)
   const SECRET = {oarfish: 1, kappa: 2, plesio: 3, submarine: 4, mermaid: 5};
   const mine = creatures.filter(c => c.user && !c.ascend && !c.launch).length;
@@ -1190,6 +1200,7 @@ function tapVisitors(px, py) {
   if (WORLD === 'dino') return tapDino(px, py);
   if (WORLD === 'yokai') return tapYokai(px, py);
   if (WORLD === 'princess') return tapPrincess(px, py);
+  if (tapDeep(px, py)) return true;
   const inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
   const start = (v, d) => { if (v.act > 0) return false; v.act = d; v.actDur = d; SND.visitor(v.kind); return true; };
   for (let i = visitors.length - 1; i >= 0; i--) {
@@ -1259,6 +1270,7 @@ function drawVisitors(dt, layer) {
     if (WORLD === 'dino') { if (!drawDinoVisitor(v, dt, P)) visitors.splice(i, 1); ctx.restore(); continue; }
     if (WORLD === 'yokai') { if (!drawYokaiVisitor(v, dt, P)) visitors.splice(i, 1); ctx.restore(); continue; }
     if (WORLD === 'princess') { if (!drawPrincessVisitor(v, dt, P)) visitors.splice(i, 1); ctx.restore(); continue; }
+    if (DEEP_KINDS.includes(v.kind)) { if (!drawDeepVisitor(v, dt, P)) visitors.splice(i, 1); ctx.restore(); continue; }
     if (v.kind === 'plesio') {
       v.x += v.dir * (P >= 0 ? 25 : 55) * dt; v.y += Math.sin(v.t * .8) * 12 * dt;
       ctx.translate(v.x, v.y);
@@ -1786,6 +1798,34 @@ const PAINT = (() => {
       t.line(p => { p.moveTo(440, 205); p.quadraticCurveTo(402, 300, 440, 395); });
       t.line(p => { p.moveTo(300, 330); p.quadraticCurveTo(290, 395, 345, 380); p.quadraticCurveTo(335, 345, 300, 330); });
       t.dot(478, 268, 15); t.line(p => { p.moveTo(490, 335); p.quadraticCurveTo(475, 345, 488, 352); });
+    }},
+    {name: 'シーラカンス', mode: 'swim', draw(t) {
+      t.part(p => { p.moveTo(115, 300); p.lineTo(35, 205); p.quadraticCurveTo(70, 300, 35, 395); p.closePath(); });
+      t.part(p => { p.moveTo(70, 300); p.lineTo(20, 280); p.lineTo(20, 320); p.closePath(); });
+      for (const [x, y, a] of [[250, 200, -.6], [360, 205, -.3], [250, 400, .6], [380, 395, .4], [170, 215, -.9], [170, 385, .9]]) t.part(p => { p.ellipse(x, y, 42, 22, a, 0, Math.PI * 2); });
+      t.part(p => p.ellipse(300, 300, 200, 100, 0, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(430, 225); p.quadraticCurveTo(410, 300, 430, 375); });
+      for (const [x, y] of [[200, 270], [260, 330], [320, 260], [350, 340], [230, 300], [380, 285], [170, 320]]) t.line(p => p.ellipse(x, y, 16, 10, 0, 0, Math.PI * 2));
+      t.dot(450, 280, 15); t.line(p => { p.moveTo(485, 325); p.lineTo(500, 320); });
+    }},
+    {name: 'チョウチンアンコウ', mode: 'swim', draw(t) {
+      t.part(p => { p.moveTo(140, 330); p.lineTo(40, 250); p.lineTo(40, 410); p.closePath(); });
+      t.part(p => p.arc(290, 330, 165, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(310, 395); p.quadraticCurveTo(410, 350, 455, 310); p.quadraticCurveTo(440, 420, 310, 395); p.closePath(); });
+      t.line(p => { for (let k = 0; k < 5; k++) { const x = 330 + k * 24; p.moveTo(x, 390 - k * 14); p.lineTo(x + 8, 372 - k * 14); p.lineTo(x + 16, 386 - k * 14); } });
+      t.part(p => { p.moveTo(240, 400); p.quadraticCurveTo(200, 470, 150, 460); p.quadraticCurveTo(200, 420, 240, 400); p.closePath(); });
+      t.line(p => { p.moveTo(330, 170); p.quadraticCurveTo(390, 50, 480, 100); });
+      t.part(p => p.arc(490, 115, 30, 0, Math.PI * 2));
+      t.line(p => { for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; p.moveTo(490 + Math.cos(a) * 40, 115 + Math.sin(a) * 40); p.lineTo(490 + Math.cos(a) * 52, 115 + Math.sin(a) * 52); } });
+      t.line(p => p.arc(370, 255, 30, 0, Math.PI * 2)); t.dot(375, 258, 15);
+    }},
+    {name: 'メンダコ', mode: 'float', draw(t) {
+      for (const k of [-1, 1]) t.part(p => p.ellipse(300 + k * 85, 165, 38, 58, k * .5, 0, Math.PI * 2));
+      t.part(p => { p.moveTo(90, 360); p.quadraticCurveTo(100, 160, 300, 155); p.quadraticCurveTo(500, 160, 510, 360); for (let k = 0; k < 8; k++) { const a = 510 - (k + 1) * 52.5; p.quadraticCurveTo(a + 26, 420, a, 370); } p.closePath(); });
+      t.line(p => { for (let k = 1; k < 8; k++) { const x = 90 + k * 52.5; p.moveTo(x, 372); p.lineTo(x + (x - 300) * .05, 335); } });
+      t.dot(240, 280, 13); t.dot(360, 280, 13);
+      for (const k of [-1, 1]) t.line(p => p.arc(300 + k * 100, 310, 16, 0, Math.PI * 2));
+      t.line(p => { p.moveTo(285, 315); p.quadraticCurveTo(300, 328, 315, 315); });
     }},
     {name: 'ふぐ', mode: 'float', draw(t) {
       for (let a = -150; a <= 150; a += 30) { const r = a * Math.PI / 180; t.part(p => { const c = Math.cos(r), s = Math.sin(r); p.moveTo(300 + 150 * Math.cos(r - .12), 310 + 150 * Math.sin(r - .12)); p.lineTo(300 + 205 * c, 310 + 205 * s); p.lineTo(300 + 150 * Math.cos(r + .12), 310 + 150 * Math.sin(r + .12)); p.closePath(); }); }
@@ -2404,7 +2444,9 @@ const GUESTS = {
     ['whale', 'クジラ', 'うみで いちばん おおきな いきもの'], ['eels', 'チンアナゴ', 'すなから かおを だして ゆらゆら'], ['crab', 'カニ', 'よこに あるくのが とくい'], ['seahorse', 'タツノオトシゴ', 'おとうさんが おなかで あかちゃんを そだてるよ'],
     ['manta', 'マンタ', 'つばさみたいな ヒレで そらを とぶように およぐ'], ['clione', 'クリオネ', '「りゅうひょうの てんし」と よばれているよ'],
     ['oarfish', 'リュウグウノツカイ', '5メートルより ながく なる ふしぎな さかな'], ['kappa', 'カッパ', 'あたまの おさらが かわくと げんきが なくなる'], ['plesio', 'プレシオサウルス', 'きょうりゅうの じだいの うみの なかま'],
-    ['submarine', 'せんすいかん', 'ふかい うみまで もぐれる のりもの'], ['mermaid', 'にんぎょひめ', 'うみの なかで いちばん うたが じょうず']],
+    ['submarine', 'せんすいかん', 'ふかい うみまで もぐれる のりもの'], ['mermaid', 'にんぎょひめ', 'うみの なかで いちばん うたが じょうず'],
+    ['angler', 'チョウチンアンコウ', 'あたまの ちょうちんを ひからせて えさを よぶよ'], ['mendako', 'メンダコ', 'みみみたいな ヒレで ぱたぱた およぐ'], ['gusoku', 'ダイオウグソクムシ', 'なんねんも ごはんを たべなくても へいき'], ['hotaruika', 'ホタルイカ', 'からだが あおく ひかる ちいさな イカ'],
+    ['daiouika', 'ダイオウイカ', 'せかいで いちばん おおきい なかまの イカ'], ['demenigisu', 'デメニギス', 'あたまが すきとおった ふしぎな さかな'], ['takaashi', 'タカアシガニ', 'あしを ひろげると 3メートルにも なる カニ']],
   dino: [['brachio', 'ブラキオサウルス', 'たかい きの はっぱも とどく ながい くび'], ['trex', 'ティラノサウルス', 'きょうりゅうの おうさま。ガオー！'], ['stego', 'ステゴサウルス', 'せなかの いたで からだを あたためたよ'], ['tricera', 'トリケラトプス', '3ぼんの つので みを まもるよ'],
     ['ptera', 'プテラノドン', 'おおきな つばさで そらを すいすい'], ['egg', 'きょうりゅうの たまご', 'なにが うまれるかな？'], ['star', 'ながれぼし', 'ねがいごとを してみよう'], ['parasaur', 'パラサウロロフス', 'あたまの とさかで おとを ならしたよ'],
     ['pachy', 'パキケファロサウルス', 'かたい あたまで ずつき！'], ['ufo', 'UFO', 'どこから きたのかな？']],
@@ -3053,6 +3095,7 @@ const SAMPLES = () => ({sea: samples, dino: dinoSamples, yokai: yokaiSamples, pr
 function setWorld(w) {
   const from = WORLD === w ? null : WORLD;
   WORLD = w; try { localStorage.setItem('suisui-world', w); } catch (_) {}
+  DEEP = false; diveT = null;
   visitors.length = 0; shark = null; erupt = null; dawn = null; midnight = null; lava.length = 0; bubbles.length = 0; fx.length = 0;
   nextVisit = clock + 6;
   // each world keeps its own drawings: put this world's away (their 3-minute timer pauses) and bring the other's back
@@ -3074,7 +3117,8 @@ function showWorld() {
     ? 'スキャンした絵や写真を入れると、白い紙の部分を消して妖怪のおまつりで動きだします。タッチするとジャンプします。30秒ごとにお客さん（からかさおばけ、ちょうちんおばけ、きつねなど）が通りかかります。入れた絵は3分たつと朝になって、空へ帰っていきます。'
     : dino
     ? 'スキャンした絵や写真を入れると、白い紙の部分を消して恐竜の世界で動きだします。タッチするとジャンプします。30秒ごとにお客さん（ティラノサウルス、プテラノドン、トリケラトプスなど）が通りかかります。入れた絵は3分たつと火山が噴火して飛んでいきます。'
-    : 'スキャンした絵や写真を入れると、白い紙の部分を消して水槽で泳ぎます。お魚をタッチするとジャンプして逃げます。水をタッチすると近くのお魚が見に来ます。30秒ごとにお客さん（マンボウ、カニ、マンタなど）が通りかかります。入れた絵は3分たつとサメが食べに来ます。';
+    : DEEP ? '深海にやってきました。ひかる生きものや、ふしぎな生きものが通りかかります。タッチするとジャンプします。画面を下にスワイプすると、もとの海にもどります。入れた絵は3分たつとサメが食べに来ます。'
+    : 'スキャンした絵や写真を入れると、白い紙の部分を消して水槽で泳ぎます。画面を上にスワイプすると深海に行けます。お魚をタッチするとジャンプして逃げます。水をタッチすると近くのお魚が見に来ます。30秒ごとにお客さん（マンボウ、カニ、マンタなど）が通りかかります。入れた絵は3分たつとサメが食べに来ます。';
   document.querySelectorAll('#worlds button').forEach(b => b.classList.toggle('on', b.dataset.w === WORLD));
   document.documentElement.dataset.world = WORLD;
 }
@@ -4234,6 +4278,253 @@ const princessSamples = [
   ['見本：ユニコーン', sprite(270, 280, x => { x.translate(125, 272); drawUnicorn(x, 225, .6); }), {mode: 'hop', small: true}],
   ['見本：ようせい', sprite(220, 200, x => { x.translate(115, 105); drawFairy(x, 230, .3); }), {mode: 'float', small: true}],
 ];
+
+/* ====================== DEEP SEA (swipe up in the sea world) ======================
+   Same tank and drawings, deeper water: dark blue, falling marine snow, glowing creatures. */
+let DEEP = false, diveT = null, deepScene = null;
+const DEEP_KINDS = ['angler', 'mendako', 'gusoku', 'hotaruika', 'daiouika', 'demenigisu', 'takaashi'];
+function buildDeepScene() {
+  const m = Math.min(W, H);
+  deepScene = {
+    snow: Array.from({length: Math.round(W * H / 6000)}, () => ({x: Math.random() * W, y: Math.random() * H, r: .6 + Math.random() * 1.6, v: 6 + Math.random() * 14, ph: Math.random() * 6})),
+    glows: Array.from({length: 18}, () => ({x: Math.random() * W, y: H * (.1 + Math.random() * .7), ph: Math.random() * 6, r: m * (.004 + Math.random() * .006), c: Math.random() < .5 ? '120,220,255' : '150,255,190'})),
+    rocks: Array.from({length: Math.max(5, Math.round(W / 110))}, () => ({x: Math.random() * W, r: m * (.04 + Math.random() * .07)})),
+    vent: {x: W * (.15 + Math.random() * .7), h: m * .16},
+  };
+}
+function drawDeepBackground(t, dt) {
+  if (!deepScene) buildDeepScene();
+  const S = deepScene;
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#062a4a'); g.addColorStop(.5, '#03142a'); g.addColorStop(1, '#010711');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (const s of S.snow) { // marine snow drifting down
+    s.y += s.v * (dt || 0); s.ph += (dt || 0); if (s.y > H) { s.y = -4; s.x = Math.random() * W; }
+    ctx.fillStyle = 'rgba(210,230,255,.35)'; ctx.beginPath(); ctx.arc(s.x + Math.sin(s.ph) * 6, s.y, s.r, 0, 7); ctx.fill();
+  }
+  for (const gl of S.glows) { // little living lights blinking far away
+    const a = Math.max(0, Math.sin(t * .0013 + gl.ph)); if (a < .1) continue;
+    ctx.fillStyle = `rgba(${gl.c},${a * .8})`; ctx.shadowColor = `rgb(${gl.c})`; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(gl.x + Math.sin(t * .0005 + gl.ph) * 20, gl.y, gl.r, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+  }
+  const sy = H * .9; // dark sea floor with rocks and a smoking vent
+  ctx.fillStyle = '#1b2433'; ctx.beginPath(); ctx.moveTo(0, H); for (let x = 0; x <= W; x += 20) ctx.lineTo(x, sy + Math.sin(x * .012) * 8); ctx.lineTo(W, H); ctx.fill();
+  ctx.fillStyle = '#0e1520'; for (const r of S.rocks) { ctx.beginPath(); ctx.ellipse(r.x, sy + 8, r.r, r.r * .55, 0, Math.PI, 0); ctx.fill(); }
+  const V = S.vent; ctx.fillStyle = '#252a35'; ctx.beginPath(); ctx.moveTo(V.x - V.h * .35, sy + 6); ctx.lineTo(V.x - V.h * .12, sy - V.h); ctx.lineTo(V.x + V.h * .12, sy - V.h); ctx.lineTo(V.x + V.h * .35, sy + 6); ctx.fill();
+  for (let k = 0; k < 6; k++) { const f = ((t * .00025 + k / 6) % 1); ctx.fillStyle = `rgba(150,150,170,${(1 - f) * .35})`; ctx.beginPath(); ctx.arc(V.x + Math.sin(f * 6 + k) * V.h * .2 * f, sy - V.h - f * V.h * 2.2, V.h * (.12 + f * .3), 0, 7); ctx.fill(); }
+}
+function startDive(down) { // down = going to the deep sea
+  if (diveT || WORLD !== 'sea' || DEEP === down) return;
+  diveT = {t: 0, down, swapped: false}; SND.whee();
+}
+function updateDive(dt) {
+  if (!diveT) return;
+  const D = diveT; D.t += dt;
+  if (!D.swapped && D.t > .7) { D.swapped = true; DEEP = D.down; visitors.length = 0; nextVisit = clock + 5 * FAST; lastKind = ''; showWorld(); }
+  const k = 1 - Math.abs(D.t - .7) / .7; // darkness peaks halfway
+  ctx.fillStyle = `rgba(1,8,20,${Math.max(0, k) * .95})`; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = `rgba(200,240,255,${Math.max(0, k) * .6})`; ctx.lineWidth = 2; // streaks rushing past
+  for (let i = 0; i < 26; i++) { const x = (i * 97.3) % W, y = ((i * 53.1 + D.t * 1400 * (D.down ? -1 : 1)) % H + H) % H; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + (D.down ? 40 : -40)); ctx.stroke(); }
+  if (D.t > 1.4) diveT = null;
+}
+function drawDiveHint() {
+  if (WORLD !== 'sea' || diveT) return;
+  const sz = Math.max(12, Math.min(W, H) * .028);
+  ctx.save(); ctx.font = `500 ${sz}px "Kiwi Maru", "Hiragino Maru Gothic ProN", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(220,245,255,.5)';
+  if (DEEP) ctx.fillText('⬇ スワイプで うみへ もどる', W / 2, sz * 1.4); else ctx.fillText('⬆ スワイプで しんかいへ', W / 2, H - sz * 1.3);
+  ctx.restore();
+}
+// swipe detection on the tank
+let swipe0 = null;
+cv.addEventListener('pointerdown', e => { swipe0 = {x: e.clientX, y: e.clientY, t: performance.now()}; }, true);
+cv.addEventListener('pointerup', e => {
+  if (!swipe0) return; const dx = e.clientX - swipe0.x, dy = e.clientY - swipe0.y, dtm = performance.now() - swipe0.t; swipe0 = null;
+  if (WORLD !== 'sea' || dtm > 1000 || Math.abs(dy) < Math.min(120, H * .15) || Math.abs(dy) < Math.abs(dx) * 1.4) return;
+  if (dy < 0 && !DEEP) startDive(true); else if (dy > 0 && DEEP) startDive(false);
+});
+
+/* ---------- deep sea visitors ---------- */
+function spawnDeep(kind) {
+  const m = Math.min(W, H), side = Math.random() < .5 ? 1 : -1, from = d => side > 0 ? -d : W + d;
+  const base = {kind, layer: 'front', dir: side, t: 0, step: 0};
+  const add = o => visitors.push(Object.assign(base, o));
+  if (kind === 'angler') add({s: m * .34, x: from(m * .3), y: H * (.35 + Math.random() * .25)});
+  else if (kind === 'mendako') add({s: m * .3, x: from(m * .2), y: H * (.3 + Math.random() * .3)});
+  else if (kind === 'gusoku') add({s: m * .26, x: from(m * .2), y: 0});
+  else if (kind === 'takaashi') add({s: m * .3, x: from(m * .5), y: 0});
+  else if (kind === 'demenigisu') add({s: m * .38, x: from(m * .2), y: H * (.3 + Math.random() * .3)});
+  else if (kind === 'daiouika') add({layer: 'back', s: m * .9, x: from(m * .65), y: H * (.3 + Math.random() * .2)});
+  else if (kind === 'hotaruika') {
+    const s = m * .085, list = Array.from({length: 14}, (_, i) => ({dx: -i * s * .9 - Math.random() * s * 1.5, dy: (Math.random() - .5) * s * 6, ph: Math.random() * 6}));
+    add({s, x: from(s * 2), y: H * (.3 + Math.random() * .3), list, rear: Math.min(...list.map(b => b.dx))});
+  }
+}
+function drawDeepVisitor(v, dt, P) {
+  const act = P >= 0, s = v.s, gone = ext => v.dir > 0 ? v.x - ext > W : v.x + ext < 0;
+  const ease = act ? Math.sin(Math.min(1, P * 3) * Math.PI / 2) * (P < .75 ? 1 : (1 - P) * 4) : 0;
+  switch (v.kind) {
+    case 'angler': {
+      v.x += v.dir * (act ? 6 : 30) * dt; v.y += Math.sin(v.t * .9) * 8 * dt;
+      const bx = v.x + v.dir * s * .52, by = v.y - s * .5;
+      if (act) { const r = s * (.6 + ease * 2.2), g = ctx.createRadialGradient(bx, by, 0, bx, by, r); g.addColorStop(0, `rgba(220,255,200,${.55 * ease})`); g.addColorStop(1, 'rgba(220,255,200,0)'); ctx.fillStyle = g; ctx.fillRect(bx - r, by - r, r * 2, r * 2); }
+      ctx.translate(v.x, v.y); ctx.scale(v.dir, 1); drawAngler(ctx, s, v.t, ease);
+      return !gone(s * .7);
+    }
+    case 'mendako': {
+      v.x += v.dir * (act ? 15 : 28) * dt; v.y += (Math.sin(v.t * 1.6) * 12 - (act ? 40 * (1 - P) : 0)) * dt;
+      ctx.translate(v.x, v.y); drawMendako(ctx, s, v.t, ease);
+      return !gone(s * .6);
+    }
+    case 'gusoku': case 'takaashi': {
+      const G = H * .9 + Math.sin(v.x * .012) * 8;
+      if (!act || v.kind === 'gusoku') { v.x += v.dir * (v.kind === 'gusoku' ? (act ? 90 : 25) : 30) * dt; v.step += dt * (v.kind === 'gusoku' ? 10 : 4); }
+      ctx.translate(v.x, G); ctx.scale(v.dir, 1);
+      if (v.kind === 'gusoku') {
+        if (act) { const r = s * .22; ctx.translate(0, -r); ctx.rotate(P * Math.PI * 4); drawGusokuBall(ctx, r); }
+        else drawGusoku(ctx, s, v.step);
+      } else drawTakaashi(ctx, s, v.step, ease, v.t);
+      return !gone(s * (v.kind === 'takaashi' ? 1.1 : .6));
+    }
+    case 'demenigisu': {
+      v.x += v.dir * (act ? 8 : 35) * dt; v.y += Math.sin(v.t * 1.2) * 10 * dt;
+      ctx.translate(v.x, v.y); ctx.scale(v.dir, 1); ctx.rotate(Math.sin(v.t * 1.2) * .05); drawDemenigisu(ctx, s, v.t, ease);
+      return !gone(s * .6);
+    }
+    case 'daiouika': {
+      v.x += v.dir * (act ? 160 * (1 - P) + 30 : 40) * dt; v.y += Math.sin(v.t * .5) * 6 * dt;
+      ctx.translate(v.x, v.y); ctx.scale(v.dir, 1); drawDaiouika(ctx, s, v.t, act);
+      return !gone(s * 1.4);
+    }
+    case 'hotaruika': {
+      v.x += v.dir * 55 * dt;
+      const flash = act ? Math.max(0, Math.sin(P * Math.PI * 3)) : 0;
+      for (const b of v.list) {
+        b.ph += dt; b.px = v.x + v.dir * b.dx; b.py = v.y + b.dy + Math.sin(b.ph * 2) * s * .4;
+        ctx.save(); ctx.translate(b.px, b.py); ctx.scale(v.dir, 1); drawHotaruika(ctx, s, b.ph, flash); ctx.restore();
+      }
+      return v.dir > 0 ? v.x + v.rear - s * 2 < W : v.x - v.rear + s * 2 > 0;
+    }
+  }
+  return false;
+}
+function tapDeep(px, py) {
+  const inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
+  const start = (v, d, say, sx, sy) => { if (v.act > 0) return false; v.act = d; v.actDur = d; SND.visitor(v.kind); if (say) pops.push({x: sx, y: sy, a: 1, text: say}); return true; };
+  for (let i = visitors.length - 1; i >= 0; i--) {
+    const v = visitors[i], s = v.s; if (!DEEP_KINDS.includes(v.kind)) continue;
+    const G = H * .9;
+    switch (v.kind) {
+      case 'angler': if (inBox(v.x + v.dir * s * .1, v.y - s * .1, s * .9, s * .8) && start(v, 2.4, 'ピカーッ！', v.x, v.y - s * .8)) { for (const c of creatures) if (Math.abs(c.x - v.x) < W * .4) c.target = {x: v.x + v.dir * s * .55, y: v.y - s * .4, t: 2}; return true; } break;
+      case 'mendako': if (inBox(v.x, v.y, s * .9, s * .6) && start(v, 1.8, 'ふわ〜ん', v.x, v.y - s * .6)) return true; break;
+      case 'gusoku': if (inBox(v.x, G - s * .15, s * .9, s * .4) && start(v, 1.6, 'まるまる〜', v.x, G - s * .7)) return true; break;
+      case 'takaashi': if (inBox(v.x, G - s * .5, s * 1.6, s, 10) && start(v, 2, 'チョキ チョキ！', v.x, G - s * 1.3)) return true; break;
+      case 'demenigisu': if (inBox(v.x, v.y, s * .9, s * .6) && start(v, 2, 'キョロッ！', v.x, v.y - s * .6)) return true; break;
+      case 'daiouika': if (inBox(v.x - v.dir * s * .1, v.y, s * 1.3, s * .4) && start(v, 2.2, 'ぷしゅ〜！', v.x, v.y - s * .4)) { burst('ink', v.x - v.dir * s * .1, v.y, 18, s * .06, 160); return true; } break;
+      case 'hotaruika': if (v.list.some(b => b.px !== undefined && Math.hypot(px - b.px, py - b.py) < s * 1.8) && start(v, 2.4, 'キラキラ〜', px, py - s * 2)) return true; break;
+    }
+  }
+  return false;
+}
+
+/* ---------- deep sea characters (facing right) ---------- */
+function drawAngler(x, s, t, open = 0) { // centred on the body
+  const lw = Math.max(2, s * .012); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
+  x.fillStyle = '#4a3530'; x.strokeStyle = '#1e1210';
+  x.beginPath(); x.moveTo(-s * .3, 0); x.lineTo(-s * .52, -s * .16 + Math.sin(t * 4) * s * .03); x.lineTo(-s * .52, s * .16 + Math.sin(t * 4) * s * .03); x.closePath(); x.fill(); x.stroke(); // tail
+  x.beginPath(); x.ellipse(0, 0, s * .36, s * .3, 0, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#6a504a'; x.beginPath(); x.ellipse(-s * .02, s * .1, s * .26, s * .14, 0, 0, 7); x.fill();
+  x.fillStyle = '#4a3530'; x.beginPath(); x.ellipse(-s * .05, s * .14, s * .1, s * .05, .6 + Math.sin(t * 5) * .2, 0, 7); x.fill(); x.stroke(); // fin
+  const mo = s * (.05 + open * .08); // mouth with teeth
+  x.fillStyle = '#1a0a0a'; x.beginPath(); x.moveTo(s * .08, s * .02); x.quadraticCurveTo(s * .3, -mo, s * .36, -s * .02); x.quadraticCurveTo(s * .3, s * .1 + mo, s * .08, s * .02); x.fill();
+  x.fillStyle = '#f4f0e0'; for (let k = 0; k < 4; k++) { const u = .14 + k * .055; x.beginPath(); x.moveTo(u * s, -s * .005 - mo * .3); x.lineTo((u + .02) * s, s * .04 - mo * .1); x.lineTo((u + .04) * s, -s * .01 - mo * .3); x.fill(); x.beginPath(); x.moveTo(u * s, s * .05 + mo * .4); x.lineTo((u + .02) * s, s * .01 + mo * .2); x.lineTo((u + .04) * s, s * .06 + mo * .4); x.fill(); }
+  x.fillStyle = '#fff'; x.beginPath(); x.arc(s * .17, -s * .12, s * .045, 0, 7); x.fill(); x.fillStyle = '#111'; x.beginPath(); x.arc(s * .18, -s * .12, s * .025, 0, 7); x.fill();
+  x.strokeStyle = '#4a3530'; x.lineWidth = s * .018; x.beginPath(); x.moveTo(s * .1, -s * .28); x.quadraticCurveTo(s * .2, -s * .62, s * .52, -s * .5); x.stroke(); x.lineWidth = lw; // the lure
+  const glow = .5 + .5 * Math.sin(t * 3), br = s * (.05 + open * .02);
+  x.save(); x.shadowColor = '#c8ffb0'; x.shadowBlur = s * (.15 + glow * .1 + open * .4); x.fillStyle = `rgb(${210 + open * 45},255,${170 + open * 85})`; x.beginPath(); x.arc(s * .52, -s * .5, br, 0, 7); x.fill(); x.restore();
+}
+function drawMendako(x, s, t, puff = 0) { // centred
+  const lw = Math.max(2, s * .02), flap = Math.sin(t * 6), w = s * (.5 + puff * .15), h = s * (.24 - puff * .03);
+  x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw; x.fillStyle = '#ee6a4a'; x.strokeStyle = '#8a2a1a';
+  for (const k of [-1, 1]) { x.save(); x.translate(k * s * .14, -h * .85); x.rotate(k * (.4 + flap * .35)); x.beginPath(); x.ellipse(0, -s * .05, s * .05, s * .085, 0, 0, 7); x.fill(); x.stroke(); x.restore(); } // ear fins
+  x.beginPath(); x.moveTo(-w, h * .3); x.quadraticCurveTo(-w * .9, -h * 1.3, 0, -h * 1.3); x.quadraticCurveTo(w * .9, -h * 1.3, w, h * .3);
+  for (let k = 0; k < 8; k++) { const a = w - (k + .5) * w * 2 / 8; x.quadraticCurveTo(a + w / 8, h * (.5 + .15 * Math.sin(t * 3 + k)), a, h * .35); }
+  x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = 'rgba(255,200,180,.6)'; x.beginPath(); x.ellipse(-w * .3, -h * .6, w * .18, h * .25, -.3, 0, 7); x.fill();
+  x.fillStyle = '#2a0a0a'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .1, -h * .2, s * .025, 0, 7); x.fill(); }
+  x.fillStyle = 'rgba(255,120,140,.6)'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .17, -h * .05, s * .025, 0, 7); x.fill(); }
+}
+function drawGusoku(x, s, step) { // a giant isopod walking on the floor; feet at (0, 0)
+  const lw = Math.max(2, s * .012); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
+  x.strokeStyle = '#6a6478'; for (let k = 0; k < 7; k++) { const lx = -s * .32 + k * s * .1, a = Math.sin(step + k) * s * .03; x.beginPath(); x.moveTo(lx, -s * .08); x.lineTo(lx + a, 0); x.stroke(); }
+  x.fillStyle = '#c8c0d4'; x.strokeStyle = '#6a6478';
+  x.beginPath(); x.ellipse(0, -s * .12, s * .42, s * .11, 0, Math.PI, 0); x.lineTo(s * .42, -s * .08); x.lineTo(-s * .42, -s * .08); x.closePath(); x.fill(); x.stroke();
+  x.strokeStyle = 'rgba(106,100,120,.8)'; for (let k = 1; k < 8; k++) { const sx = -s * .42 + k * s * .105; x.beginPath(); x.moveTo(sx, -s * .09); x.quadraticCurveTo(sx + s * .02, -s * .17, sx, -s * .22 * Math.sqrt(Math.max(0, 1 - Math.pow(sx / (s * .42), 2)))); x.stroke(); }
+  x.fillStyle = '#c8c0d4'; x.strokeStyle = '#6a6478'; x.beginPath(); x.moveTo(-s * .42, -s * .1); x.lineTo(-s * .55, -s * .14); x.lineTo(-s * .55, -s * .06); x.closePath(); x.fill(); x.stroke(); // tail fan
+  x.fillStyle = '#d4cce0'; x.beginPath(); x.ellipse(s * .43, -s * .1, s * .08, s * .07, 0, 0, 7); x.fill(); x.stroke(); // head
+  x.fillStyle = '#2a2a3a'; x.beginPath(); x.ellipse(s * .46, -s * .12, s * .03, s * .04, 0, 0, 7); x.fill();
+  x.fillStyle = '#fff'; x.beginPath(); x.arc(s * .465, -s * .135, s * .008, 0, 7); x.fill();
+  x.strokeStyle = '#6a6478'; x.beginPath(); x.moveTo(s * .5, -s * .08); x.quadraticCurveTo(s * .62, -s * .1, s * .66, -s * .02); x.stroke();
+}
+function drawGusokuBall(x, r) { // rolled up
+  x.lineWidth = Math.max(2, r * .05); x.fillStyle = '#c8c0d4'; x.strokeStyle = '#6a6478';
+  x.beginPath(); x.arc(0, 0, r, 0, 7); x.fill(); x.stroke();
+  for (let k = -3; k <= 3; k++) { x.beginPath(); x.ellipse(0, 0, r * Math.abs(k) / 3.5 + r * .05, r, 0, k < 0 ? Math.PI * .5 : -Math.PI * .5, k < 0 ? Math.PI * 1.5 : Math.PI * .5); x.stroke(); }
+}
+function drawTakaashi(x, s, step, up = 0, t = 0) { // giant spider crab; feet at (0, 0)
+  const lw = Math.max(2, s * .016); x.lineJoin = x.lineCap = 'round';
+  const by = -s * (.45 + up * .2);
+  for (const side of [-1, 1]) for (let k = 0; k < 4; k++) { // eight long jointed legs
+    const ph = step + k * 1.3 + (side > 0 ? 0 : Math.PI), lift = Math.max(0, Math.sin(ph)) * s * .06;
+    const hx = side * s * (.08 + k * .03), kx = side * s * (.35 + k * .12), ky = by - s * (.25 + k * .03) - lift, fx = side * s * (.55 + k * .2) + Math.cos(ph) * s * .04, fy = -lift * .5;
+    x.strokeStyle = '#9a3a1a'; x.lineWidth = s * .035; x.beginPath(); x.moveTo(hx, by); x.lineTo(kx, ky); x.lineTo(fx, fy); x.stroke();
+    x.strokeStyle = '#f08a4a'; x.lineWidth = s * .022; x.stroke();
+    x.fillStyle = '#fff4e0'; for (const [a, b] of [[(hx + kx) / 2, (by + ky) / 2], [(kx + fx) / 2, (ky + fy) / 2]]) { x.beginPath(); x.arc(a, b, s * .008, 0, 7); x.fill(); }
+  }
+  for (const side of [-1, 1]) { // thin claws, raised when tapped
+    const cx = side * s * .22, cy = by - s * (.15 + up * .35), sn = Math.sin(t * 12) * up * .3;
+    x.strokeStyle = '#f08a4a'; x.lineWidth = s * .025; x.beginPath(); x.moveTo(side * s * .08, by - s * .03); x.lineTo(cx, cy); x.stroke();
+    x.lineWidth = s * .02; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + side * s * .05, cy - s * (.06 + sn * .1)); x.moveTo(cx, cy); x.lineTo(cx + side * s * .07, cy - s * .01); x.stroke();
+  }
+  x.lineWidth = lw; x.fillStyle = '#f08a4a'; x.strokeStyle = '#9a3a1a'; // body
+  x.beginPath(); x.moveTo(-s * .14, by + s * .06); x.quadraticCurveTo(-s * .17, by - s * .18, 0, by - s * .2); x.quadraticCurveTo(s * .17, by - s * .18, s * .14, by + s * .06); x.quadraticCurveTo(0, by + s * .1, -s * .14, by + s * .06); x.fill(); x.stroke();
+  x.fillStyle = '#fff4e0'; for (const [a, b] of [[-.06, -.08], [.07, -.06], [0, -.14], [-.03, .0], [.05, .02]]) { x.beginPath(); x.arc(a * s, by + b * s, s * .014, 0, 7); x.fill(); }
+  x.fillStyle = '#222'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .035, by - s * .2, s * .014, 0, 7); x.fill(); }
+}
+function drawDemenigisu(x, s, t, look = 0) { // barreleye: a fish with a see-through head; centred
+  const lw = Math.max(2, s * .014); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
+  x.fillStyle = '#3a3e4a'; x.strokeStyle = '#15171e';
+  x.beginPath(); x.moveTo(-s * .25, 0); x.lineTo(-s * .45, -s * .1 + Math.sin(t * 5) * s * .02); x.lineTo(-s * .45, s * .1 + Math.sin(t * 5) * s * .02); x.closePath(); x.fill(); x.stroke();
+  x.beginPath(); x.ellipse(-s * .02, s * .02, s * .28, s * .1, 0, 0, 7); x.fill(); x.stroke();
+  x.strokeStyle = 'rgba(160,170,190,.6)'; for (let k = 0; k < 4; k++) { x.beginPath(); x.arc(-s * .12 + k * s * .07, s * .02, s * .04, -1, 1); x.stroke(); }
+  x.fillStyle = '#3a3e4a'; x.strokeStyle = '#15171e'; x.beginPath(); x.moveTo(s * .2, s * .04); x.lineTo(s * .3, s * .03); x.lineTo(s * .2, s * .08); x.fill(); // little mouth
+  for (const k of [0, 1]) { // tube eyes inside the dome, looking up (or forward when tapped)
+    const ex = s * (.08 + k * .06), a = -Math.PI / 2 + look * Math.PI / 2.2;
+    x.save(); x.translate(ex, -s * .04); x.rotate(a);
+    x.fillStyle = '#2a8a4a'; x.fillRect(0, -s * .022, s * .1, s * .044);
+    x.shadowColor = '#7fff9a'; x.shadowBlur = s * (.05 + look * .15); x.fillStyle = look ? '#c0ffcc' : '#5ff07a'; x.beginPath(); x.arc(s * .1, 0, s * .03, 0, 7); x.fill(); x.restore();
+  }
+  x.fillStyle = 'rgba(170,230,255,.22)'; x.strokeStyle = 'rgba(190,240,255,.7)'; // the clear dome
+  x.beginPath(); x.ellipse(s * .1, -s * .05, s * .16, s * .15, 0, Math.PI * 1.05, Math.PI * 2.05); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = 'rgba(255,255,255,.5)'; x.beginPath(); x.ellipse(s * .04, -s * .14, s * .03, s * .015, -.5, 0, 7); x.fill();
+}
+function drawDaiouika(x, s, t, inked) { // giant squid swimming tail-first: mantle ahead (right), arms trailing
+  const lw = Math.max(2, s * .006); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
+  for (let k = 0; k < 8; k++) { // trailing arms
+    const off = (k - 3.5) * s * .015; x.strokeStyle = k < 2 ? '#8a2a2a' : '#b84040'; x.lineWidth = s * (k < 2 ? .012 : .02);
+    x.beginPath(); x.moveTo(-s * .05, off); for (let i = 1; i <= 10; i++) { const u = i / 10; x.lineTo(-s * .05 - u * s * (k < 2 ? .8 : .45), off * (1 + u * 2) + Math.sin(t * 2 - u * 5 + k) * s * .04 * u); } x.stroke();
+  }
+  x.lineWidth = lw; x.fillStyle = '#c84a4a'; x.strokeStyle = '#6a1a1a';
+  x.beginPath(); x.moveTo(-s * .05, -s * .06); x.quadraticCurveTo(s * .25, -s * .1, s * .5, -s * .02); x.lineTo(s * .62, -s * .09); x.lineTo(s * .6, s * .09); x.lineTo(s * .5, s * .02); x.quadraticCurveTo(s * .25, s * .1, -s * .05, s * .06); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = 'rgba(255,170,160,.35)'; for (let k = 0; k < 6; k++) { x.beginPath(); x.arc(s * (.05 + k * .08), (k % 2 - .5) * s * .04, s * .012, 0, 7); x.fill(); }
+  x.fillStyle = '#fff'; x.beginPath(); x.arc(s * .02, -s * .015, s * .03, 0, 7); x.fill(); x.fillStyle = '#111'; x.beginPath(); x.arc(s * .015, -s * .015, s * .018, 0, 7); x.fill();
+}
+function drawHotaruika(x, s, ph, flash = 0) { // firefly squid, a tiny one; centred, swimming right
+  x.fillStyle = '#7a4a6a'; x.beginPath(); x.moveTo(s * .6, 0); x.quadraticCurveTo(s * .3, -s * .25, -s * .1, -s * .15); x.lineTo(-s * .1, s * .15); x.quadraticCurveTo(s * .3, s * .25, s * .6, 0); x.fill();
+  x.strokeStyle = '#7a4a6a'; x.lineWidth = Math.max(1, s * .06); for (let k = -2; k <= 2; k++) { x.beginPath(); x.moveTo(-s * .1, k * s * .05); x.lineTo(-s * .5, k * s * .1 + Math.sin(ph * 6 + k) * s * .05); x.stroke(); }
+  const a = .35 + .3 * Math.sin(ph * 3) + flash * .6;
+  x.save(); x.shadowColor = '#4ac8ff'; x.shadowBlur = s * (.3 + flash); x.fillStyle = `rgba(110,210,255,${Math.min(1, a)})`;
+  for (const [u, v] of [[.4, 0], [.2, -.08], [.2, .08], [0, -.05], [0, .05], [-.45, 0]]) { x.beginPath(); x.arc(u * s, v * s, s * (.05 + flash * .03), 0, 7); x.fill(); }
+  x.restore();
+}
 
 // no pinch-zoom or double-tap zoom anywhere (iOS Safari ignores user-scalable=no, so block the gestures too)
 document.addEventListener('gesturestart', e => e.preventDefault());

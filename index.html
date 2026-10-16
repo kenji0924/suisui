@@ -112,7 +112,19 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 .drop-row .drop { min-width: 0; }
 .side { display: grid; gap: 8px; }
 .side .paint-open { padding: 10px 12px; font-size: 16px; }
-.zukan { grid-template-rows: auto auto 1fr; }
+.zukan { grid-template-rows: auto auto auto 1fr; }
+.ztabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ztabs button { padding: 9px 4px; font-size: 15px; border-radius: 14px; }
+.ztabs button.on { background: var(--accent); color: #2b2000; border-color: transparent; font-weight: 700; }
+.gcard { background: rgba(255,255,255,.06); border: 1px solid var(--panel-line); border-radius: 14px; padding: 6px; display: grid; gap: 4px; text-align: center; }
+.gcard button { padding: 0; border: 0; border-radius: 10px; background: linear-gradient(#1580a0, #0b4d6c); aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; }
+.gcard img { max-width: 86%; max-height: 86%; object-fit: contain; }
+.gcard small { font-size: 12px; color: var(--ink); line-height: 1.3; min-height: 2.6em; display: grid; place-items: center; }
+.gcard.unmet img { filter: brightness(0) opacity(.45); }
+.gcard.unmet small { color: var(--ink-soft); }
+html[data-world="dino"] .gcard button { background: linear-gradient(#bfe8ff, #9bd27a); }
+html[data-world="yokai"] .gcard button { background: linear-gradient(#171340, #6b3f7d); }
+html[data-world="princess"] .gcard button { background: linear-gradient(#b493e6, #ffc4dc); }
 .zgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; overflow-y: auto; align-content: start; padding-bottom: 8px; }
 .zcard { background: rgba(255,255,255,.06); border: 1px solid var(--panel-line); border-radius: 14px; padding: 6px; display: grid; gap: 4px; }
 .zpick { padding: 0; border: 0; border-radius: 10px; background: linear-gradient(#1580a0, #0b4d6c); aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; }
@@ -161,6 +173,7 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 <button class="show-btn" id="showTray" hidden>パネル</button>
 <section class="paint zukan" id="zukan" hidden aria-label="ずかん">
   <div class="paint-head"><h2 id="zTitle">📖 ずかん</h2><button id="zClose" aria-label="とじる">✕</button></div>
+  <div class="ztabs" id="zTabs"><button data-t="pics" class="on">🖼 かいた え</button><button data-t="guests">✨ おきゃくさん</button></div>
   <p id="zInfo" style="margin:0;font-size:13px;color:var(--ink-soft)"></p>
   <div class="zgrid" id="zGrid"></div>
 </section>
@@ -774,7 +787,7 @@ function scheduleVisitors() {
   const mine = creatures.filter(c => c.user && !c.ascend && !c.launch).length;
   const pool = WORLD === 'sea' ? kinds.filter(k => mine >= (SECRET[k] || 0)) : kinds;
   lastKind = FORCE && clock < 5 ? FORCE : pool[Math.floor(Math.random() * pool.length)];
-  spawnVisitor(lastKind); SND.arrive();
+  spawnVisitor(lastKind); SND.arrive(); MET.add(WORLD, lastKind);
 }
 function sandY(x) { return H * .9 + Math.sin(x * .012) * 8; }
 function eelPoints(e, face, t) {
@@ -2385,6 +2398,70 @@ async function saveImage(cv) {
 }
 const toCanvas = img => { if (img.getContext) return img; const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; c.getContext('2d').drawImage(img, 0, 0); return c; };
 
+/* ---------- guest book: which visitors you have met, per world ---------- */
+const GUESTS = {
+  sea: [['squid', 'イカ', 'ピュッと すみを はいて にげるよ'], ['mola', 'マンボウ', 'せかいで いちばん たまごを たくさん うむ さかな'], ['turtle', 'ウミガメ', 'うまれた はまに もどって たまごを うむよ'], ['school', 'さかなの むれ', 'みんなで あつまって おおきな さかなの ふり'],
+    ['whale', 'クジラ', 'うみで いちばん おおきな いきもの'], ['eels', 'チンアナゴ', 'すなから かおを だして ゆらゆら'], ['crab', 'カニ', 'よこに あるくのが とくい'], ['seahorse', 'タツノオトシゴ', 'おとうさんが おなかで あかちゃんを そだてるよ'],
+    ['manta', 'マンタ', 'つばさみたいな ヒレで そらを とぶように およぐ'], ['clione', 'クリオネ', '「りゅうひょうの てんし」と よばれているよ'],
+    ['oarfish', 'リュウグウノツカイ', '5メートルより ながく なる ふしぎな さかな'], ['kappa', 'カッパ', 'あたまの おさらが かわくと げんきが なくなる'], ['plesio', 'プレシオサウルス', 'きょうりゅうの じだいの うみの なかま'],
+    ['submarine', 'せんすいかん', 'ふかい うみまで もぐれる のりもの'], ['mermaid', 'にんぎょひめ', 'うみの なかで いちばん うたが じょうず']],
+  dino: [['brachio', 'ブラキオサウルス', 'たかい きの はっぱも とどく ながい くび'], ['trex', 'ティラノサウルス', 'きょうりゅうの おうさま。ガオー！'], ['stego', 'ステゴサウルス', 'せなかの いたで からだを あたためたよ'], ['tricera', 'トリケラトプス', '3ぼんの つので みを まもるよ'],
+    ['ptera', 'プテラノドン', 'おおきな つばさで そらを すいすい'], ['egg', 'きょうりゅうの たまご', 'なにが うまれるかな？'], ['star', 'ながれぼし', 'ねがいごとを してみよう'], ['parasaur', 'パラサウロロフス', 'あたまの とさかで おとを ならしたよ'],
+    ['pachy', 'パキケファロサウルス', 'かたい あたまで ずつき！'], ['ufo', 'UFO', 'どこから きたのかな？']],
+  yokai: [['karakasa', 'からかさおばけ', '1ぽんあしで ぴょんぴょん'], ['chochin', 'ちょうちんおばけ', 'よるの おまつりを あかるく するよ'], ['momen', 'いったんもめん', 'ながい ぬのが そらを ひらひら'], ['rokuro', 'ろくろくび', 'くびが の〜び〜る〜'],
+    ['kitsune', 'きつね', 'きつねびを ともして ぎょうれつ'], ['neko', 'ばけねこ', 'しっぽが ふたつに わかれた ねこ'], ['hitotsume', 'ひとつめこぞう', 'おどかすのが だいすき'], ['tengu', 'てんぐ', 'うちわで おおかぜを おこすよ'],
+    ['oni', 'おに', 'たいこを ドンドン たたくよ'], ['nurikabe', 'ぬりかべ', 'みちを とおせんぼ する かべ'], ['yukionna', 'ゆきおんな', 'つめたい いきで あたりを ゆきげしき']],
+  princess: [['carriage', 'かぼちゃの ばしゃ', 'まほうで かぼちゃが ばしゃに'], ['unicorn', 'ユニコーン', 'にじを よぶ ふしぎな うま'], ['prince', 'おうじさま', 'ダンスが だいすき'], ['prince2', 'バラの おうじさま', 'あかい バラを もってきたよ'],
+    ['starprince', 'ほしの おうじさま', 'ちいさな ほしと いっしょに たびを しているよ'], ['hakuba', 'はくばの おうじさま', 'しろい うまで むかえに くるよ'], ['yusha', 'ゆうしゃ', 'つよくて やさしい けんの つかいて'], ['aladdin', 'アラジン', 'まほうの じゅうたんで そらの たび'],
+    ['mice', 'ねずみの がくたい', 'パンパカパーン！'], ['majo', 'まほうつかい', 'みんなに おうかんを くれるよ'], ['fairy', 'ようせい', 'キラキラの まほうを かけるよ'], ['angel', 'てんし', 'しあわせを はこんで くるよ'],
+    ['dragon', 'ドラゴン', 'ひの かわりに ハートを ふくよ'], ['butterflies', 'ちょうちょ', 'おはなばたけが だいすき']],
+};
+const MET = (() => {
+  let m = {}; try { m = JSON.parse(localStorage.getItem('suisui-met') || '{}'); } catch (_) {}
+  return {
+    has: (w, k) => !!(m[w] && m[w][k]),
+    add(w, k) { if (!GUESTS[w] || !GUESTS[w].some(g => g[0] === k)) return; (m[w] = m[w] || {})[k] = 1; try { localStorage.setItem('suisui-met', JSON.stringify(m)); } catch (_) {} },
+  };
+})();
+const guestThumbs = {}; // world:kind -> image URL
+function guestThumb(kind) { // draw one visitor on its own (the tank is hidden behind the book) and cut it out
+  const key = WORLD + ':' + kind; if (guestThumbs[key] !== undefined) return guestThumbs[key];
+  const keep = {v: visitors.splice(0), c: creatures.splice(0), fx: fx.length, b: bubbles.length, p: pops.length, r: ripples.length, shake};
+  const mute = {}; for (const k in SND) if (typeof SND[k] === 'function' && k !== 'init' && k !== 'isOn' && k !== 'setOn') { mute[k] = SND[k]; SND[k] = () => {}; }
+  let url = null; const rW = W, rH = H, V = 1000, f = Math.min(rW, rH) / V;
+  W = H = V; ctx.setTransform(DPR * f, 0, 0, DPR * f, 0, 0); // a virtual square stage that fits on any screen
+  try {
+    spawnVisitor(kind); const v = visitors[0];
+    if (v) {
+      if ('dir' in v) v.dir = 1;
+      if (v.kind === 'school') { v.vx = 1; v.x = W * .65; }
+      else if (v.kind === 'mola' || v.kind === 'turtle' || v.kind === 'whale') { v.vx = 1; v.x = W * .5; }
+      else if (v.kind === 'oarfish' || v.kind === 'momen') v.x = W * .5 + v.L * .45;
+      else if (v.kind === 'squid') v.y = H * .6;
+      else if (v.kind === 'clione') v.list.forEach((c, i) => { c.y = H * (.45 + (i % 2) * .1); });
+      else if (v.kind === 'pachy') { v.a.x = v.cx - v.w * .9; v.b.x = v.cx + v.w * .9; }
+      else if (v.kind === 'eels') v.eels.forEach(e => { e.delay = 0; });
+      else if ('x' in v && v.kind !== 'star') v.x = v.kind === 'carriage' ? W * .62 : W * .5;
+      for (let i = 0; i < 50 && visitors.length; i++) { ctx.clearRect(0, 0, V, V); drawVisitors(.025, 'back'); drawVisitors(.025, 'front'); }
+      // crop to the drawn pixels
+      const src = Math.round(V * f * DPR), sw = 250, sh = 250, sm = document.createElement('canvas'); sm.width = sw; sm.height = sh;
+      const sx = sm.getContext('2d'); sx.drawImage(cv, 0, 0, src, src, 0, 0, sw, sh); const a = sx.getImageData(0, 0, sw, sh).data;
+      let x0 = sw, y0 = sh, x1 = -1, y1 = -1;
+      for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) if (a[(y * sw + x) * 4 + 3] > 30) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 >= 0) {
+        const k = src / sw, bx = Math.max(0, (x0 - 1) * k), by = Math.max(0, (y0 - 1) * k), bw = Math.min(src - bx, (x1 - x0 + 3) * k), bh = Math.min(src - by, (y1 - y0 + 3) * k);
+        const sc = Math.min(1, 260 / Math.max(bw, bh)), o = document.createElement('canvas'); o.width = Math.max(1, Math.round(bw * sc)); o.height = Math.max(1, Math.round(bh * sc));
+        o.getContext('2d').drawImage(cv, bx, by, bw, bh, 0, 0, o.width, o.height); url = o.toDataURL();
+      }
+    }
+  } catch (_) { url = null; }
+  W = rW; H = rH; ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  visitors.length = 0; visitors.push(...keep.v); creatures.length = 0; creatures.push(...keep.c);
+  fx.length = keep.fx; bubbles.length = keep.b; pops.length = keep.p; ripples.length = keep.r; shake = keep.shake;
+  Object.assign(SND, mute);
+  return guestThumbs[key] = url;
+}
+
 const ZUKAN = (() => {
   const MAX = 300;
   let dbp = null;
@@ -2411,11 +2488,32 @@ const ZUKAN = (() => {
   // the ずかん screen
   const root = document.getElementById('zukan'), grid = document.getElementById('zGrid'), info = document.getElementById('zInfo');
   let urls = [];
-  async function open() {
-    NAV.open('zukan'); urls.forEach(URL.revokeObjectURL); urls = []; grid.innerHTML = '';
+  let tab = 'pics';
+  document.querySelectorAll('#zTabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; show(); });
+  function showGuests() {
+    const list = GUESTS[WORLD] || [];
+    const got = list.filter(g => MET.has(WORLD, g[0])).length;
+    info.textContent = `であった おきゃくさん ${got} / ${list.length}` + (got === list.length ? ' ・ ぜんぶ あつめたよ！🎉' : ' ・ タップすると おしゃべりするよ');
+    const todo = [], w0 = WORLD;
+    for (const [kind, name, fact] of list) {
+      const met = MET.has(WORLD, kind), card = document.createElement('div'); card.className = 'gcard' + (met ? '' : ' unmet');
+      const b = document.createElement('button'), im = new Image(); im.alt = ''; b.append(im); todo.push([im, kind]);
+      const nm = document.createElement('small'); nm.textContent = met ? name : '？？？';
+      b.setAttribute('aria-label', met ? name : 'まだ であっていない おきゃくさん');
+      b.onclick = () => { SND.init(); if (met) { SND.visitor(kind); toast(`${name}：${fact}`); } else toast('まだ であっていないよ。どんな おきゃくさんかな？'); };
+      card.append(b, nm); grid.append(card);
+    }
+    const next = () => { if (!todo.length || WORLD !== w0) return; const [im, k] = todo.shift(), u = guestThumb(k); if (u) im.src = u; setTimeout(next, 0); }; // pictures appear one by one
+    next();
+  }
+  async function open() { NAV.open('zukan'); show(); }
+  async function show() {
+    urls.forEach(URL.revokeObjectURL); urls = []; grid.innerHTML = '';
+    document.querySelectorAll('#zTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
     const dino = WORLD === 'dino', yk = WORLD === 'yokai';
     const pr = WORLD === 'princess';
     document.getElementById('zTitle').textContent = pr ? '📖 ずかん（プリンセス）' : yk ? '📖 ずかん（ようかい）' : dino ? '📖 ずかん（きょうりゅう）' : '📖 ずかん（うみ）';
+    if (tab === 'guests') { showGuests(); return; }
     const all_ = await all();
     if (!all_) { info.textContent = 'このブラウザでは ずかん を使えません（シークレットモードなど）。'; return; }
     const list = all_.filter(r => (r.world || 'sea') === WORLD); // each world has its own book

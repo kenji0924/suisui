@@ -3177,6 +3177,48 @@ function lanternShape(x, s, lit) { // a round paper lantern (chochin), centred
   x.strokeStyle = 'rgba(120,30,20,.45)'; x.lineWidth = Math.max(1, s * .03);
   for (let k = -2; k <= 2; k++) { x.beginPath(); x.ellipse(0, k * s * .17, s * .45 * Math.sqrt(1 - Math.pow(k * .17 / .52, 2)), s * .04, 0, 0, Math.PI * 2); x.stroke(); }
 }
+function drawShrine(cx, G, u, t) { // a small Shinto shrine (yashiro): stone base, red pillars, gabled roof with chigi and katsuogi, rope and bell
+  const c = ctx, lw = Math.max(1.5, u * .008); c.lineJoin = c.lineCap = 'round'; c.lineWidth = lw;
+  // stone lanterns either side
+  for (const k of [-1, 1]) { const lx = cx + k * u * .62; c.fillStyle = '#8a8798'; c.strokeStyle = '#4a4858';
+    c.fillRect(lx - u * .03, G - u * .2, u * .06, u * .2); c.fillRect(lx - u * .06, G - u * .03, u * .12, u * .03);
+    c.beginPath(); c.moveTo(lx - u * .07, G - u * .27); c.lineTo(lx, G - u * .32); c.lineTo(lx + u * .07, G - u * .27); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = '#ffd27a'; c.shadowColor = '#ffb347'; c.shadowBlur = u * .06; c.fillRect(lx - u * .035, G - u * .26, u * .07, u * .06); c.shadowBlur = 0; c.strokeRect(lx - u * .035, G - u * .26, u * .07, u * .06); }
+  // stone platform and steps
+  c.fillStyle = '#9a96a6'; c.strokeStyle = '#55526a';
+  c.fillRect(cx - u * .42, G - u * .1, u * .84, u * .1); c.strokeRect(cx - u * .42, G - u * .1, u * .84, u * .1);
+  for (let k = 0; k < 3; k++) { const w = u * (.22 - k * .04); c.fillRect(cx - w / 2, G - u * (.033 * k), w, u * .033); c.strokeRect(cx - w / 2, G - u * (.033 * k), w, u * .033); }
+  const fy = G - u * .1, top = fy - u * .36; // floor and top of the walls
+  // veranda rail
+  c.fillStyle = '#7a3a2a'; c.fillRect(cx - u * .4, fy - u * .05, u * .8, u * .02);
+  // body: wooden walls with red pillars
+  c.fillStyle = '#5a3a2e'; c.fillRect(cx - u * .32, top, u * .64, fy - top);
+  c.fillStyle = '#ffcf7a'; c.globalAlpha = .55 + .15 * Math.sin(t * .002); c.fillRect(cx - u * .12, top + u * .08, u * .24, u * .2); c.globalAlpha = 1; // warm light behind the lattice doors
+  c.strokeStyle = '#3a2216'; c.lineWidth = lw * .8; for (let k = 1; k < 4; k++) { const x = cx - u * .12 + k * u * .06; c.beginPath(); c.moveTo(x, top + u * .08); c.lineTo(x, top + u * .28); c.stroke(); } for (let k = 1; k < 3; k++) { const y = top + u * .08 + k * u * .067; c.beginPath(); c.moveTo(cx - u * .12, y); c.lineTo(cx + u * .12, y); c.stroke(); }
+  c.lineWidth = lw; c.fillStyle = '#d8402e'; c.strokeStyle = '#7a1f1a';
+  for (const k of [-.3, -.13, .13, .3]) { c.fillRect(cx + k * u - u * .025, top, u * .05, fy - top); c.strokeRect(cx + k * u - u * .025, top, u * .05, fy - top); }
+  c.fillRect(cx - u * .34, top, u * .68, u * .035); c.strokeRect(cx - u * .34, top, u * .68, u * .035); // beam
+  // big gabled roof with upturned eaves
+  const ry = top - u * .02, ridge = top - u * .3;
+  c.fillStyle = '#3f4a5e'; c.strokeStyle = '#1e2433';
+  c.beginPath(); c.moveTo(cx - u * .55, ry + u * .02); c.quadraticCurveTo(cx - u * .4, ry - u * .02, cx - u * .28, ridge + u * .04); c.lineTo(cx + u * .28, ridge + u * .04);
+  c.quadraticCurveTo(cx + u * .4, ry - u * .02, cx + u * .55, ry + u * .02); c.lineTo(cx + u * .5, ry + u * .05); c.lineTo(cx - u * .5, ry + u * .05); c.closePath(); c.fill(); c.stroke();
+  c.strokeStyle = 'rgba(160,175,200,.35)'; for (let k = 1; k < 9; k++) { const x = cx - u * .5 + k * u * .11; c.beginPath(); c.moveTo(x, ry + u * .04); c.lineTo(cx + (x - cx) * .55, ridge + u * .05); c.stroke(); } // tiles
+  c.fillStyle = '#c9a24a'; c.fillRect(cx - u * .3, ridge + u * .02, u * .6, u * .03); // ridge
+  for (const k of [-1, 1]) { c.strokeStyle = '#c9a24a'; c.lineWidth = u * .02; c.beginPath(); c.moveTo(cx + k * u * .26, ridge + u * .04); c.lineTo(cx + k * u * .34, ridge - u * .09); c.stroke(); c.beginPath(); c.moveTo(cx + k * u * .3, ridge + u * .04); c.lineTo(cx + k * u * .22, ridge - u * .09); c.stroke(); } // chigi (crossed beams)
+  c.fillStyle = '#c9a24a'; c.lineWidth = lw; for (const k of [-.14, 0, .14]) { c.beginPath(); c.ellipse(cx + k * u, ridge + u * .005, u * .035, u * .016, 0, 0, 7); c.fill(); } // katsuogi
+  // shimenawa rope with zig-zag paper, and the bell
+  const ny = top + u * .045;
+  c.strokeStyle = '#e8d7a0'; c.lineWidth = u * .025; c.beginPath(); c.moveTo(cx - u * .3, ny); c.quadraticCurveTo(cx, ny + u * .07, cx + u * .3, ny); c.stroke();
+  c.fillStyle = '#ffffff'; c.lineWidth = lw * .6; c.strokeStyle = '#aaa';
+  for (const k of [-.18, 0, .18]) { const x = cx + k * u, y = ny + u * (.035 + (k ? .0 : .03)); c.beginPath(); c.moveTo(x, y); c.lineTo(x + u * .02, y + u * .025); c.lineTo(x - u * .005, y + u * .035); c.lineTo(x + u * .02, y + u * .06); c.lineTo(x, y + u * .075); c.lineTo(x - u * .01, y + u * .07); c.lineTo(x + u * .008, y + u * .055); c.lineTo(x - u * .015, y + u * .04); c.lineTo(x + u * .005, y + u * .03); c.closePath(); c.fill(); }
+  const sw = Math.sin(t * .0015) * .05; c.save(); c.translate(cx, ny + u * .05); c.rotate(sw);
+  c.fillStyle = '#ffd84a'; c.strokeStyle = '#a07a10'; c.lineWidth = lw; c.beginPath(); c.arc(0, u * .03, u * .03, 0, 7); c.fill(); c.stroke(); // suzu bell
+  c.strokeStyle = '#e04a5a'; c.lineWidth = u * .012; c.beginPath(); c.moveTo(0, u * .06); c.lineTo(0, u * .2); c.stroke(); c.strokeStyle = '#ffffff'; c.lineWidth = u * .005; c.beginPath(); c.moveTo(-u * .004, u * .07); c.lineTo(u * .004, u * .19); c.stroke(); c.restore();
+  // offering box
+  c.fillStyle = '#7a4a2a'; c.strokeStyle = '#3a2216'; c.lineWidth = lw; c.fillRect(cx - u * .09, fy - u * .07, u * .18, u * .07); c.strokeRect(cx - u * .09, fy - u * .07, u * .18, u * .07);
+  c.strokeStyle = '#c9a24a'; for (let k = 1; k < 5; k++) { c.beginPath(); c.moveTo(cx - u * .09 + k * u * .036, fy - u * .07); c.lineTo(cx - u * .09 + k * u * .036, fy - u * .05); c.stroke(); }
+}
 function drawYokaiBackground(t) {
   if (!ykScene) buildYokaiScene();
   const S = ykScene, G = GROUND(), dk = dawn ? dawn.k : 0;
@@ -3205,9 +3247,7 @@ function drawYokaiBackground(t) {
   for (const h of S.hills) { ctx.beginPath(); ctx.ellipse(h.x, G, h.r, h.r * .42, 0, Math.PI, 0); ctx.fill(); }
   // shrine behind the torii
   const T = S.torii, tx = T.x, th = T.h;
-  ctx.fillStyle = '#3a2a3a'; ctx.beginPath(); ctx.moveTo(tx + th * .35, G - th * .55); ctx.lineTo(tx + th * 1.25, G - th * .55); ctx.lineTo(tx + th * 1.12, G - th * .78); ctx.lineTo(tx + th * .48, G - th * .78); ctx.closePath(); ctx.fill();
-  ctx.fillRect(tx + th * .45, G - th * .55, th * .7, th * .55);
-  ctx.fillStyle = '#ffcf6b'; ctx.globalAlpha = .7; ctx.fillRect(tx + th * .7, G - th * .4, th * .2, th * .3); ctx.globalAlpha = 1;
+  drawShrine(tx + th * .82, G, th, t);
   // torii gate
   ctx.fillStyle = '#e0442f'; ctx.strokeStyle = '#7a1f1a'; ctx.lineWidth = 3;
   const pw = th * .09;

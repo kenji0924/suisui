@@ -4995,7 +4995,8 @@ function drawSportsDay(t, dt, G, m, A, front) { // おばけの運動会: track 
     for (const k of [.3, .62, .9]) { c.beginPath(); c.moveTo(0, G + (H - G) * k); c.lineTo(W, G + (H - G) * k); c.stroke(); } c.setLineDash([]);
     // scoreboard: tap it (or watch the relay) to add points
     A.sb = Math.max(0, A.sb - dt);
-    const bw = Math.min(W * .26, m * .46), bx = W * .5, by = H * .28, bh = bw * .42;
+    const bw = Math.min(W * .42, m * .46), bx = W * .5, bh = bw * .42, by = G - m * .55; // short legs on tall screens too
+    c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillStyle = '#5a3a24'; c.fillRect(bx - bw * .35, by + bh * .5, bw * .05, G - by - bh * .5); c.fillRect(bx + bw * .3, by + bh * .5, bw * .05, G - by - bh * .5);
     c.fillStyle = '#2a3a2a'; c.strokeStyle = '#7a5a3a'; c.lineWidth = 5; c.fillRect(bx - bw / 2, by - bh / 2, bw, bh); c.strokeRect(bx - bw / 2, by - bh / 2, bw, bh);
     const pop = A.sb > 0 ? 1 + Math.sin(A.sb * 10) * .1 : 1;

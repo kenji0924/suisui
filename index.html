@@ -93,7 +93,20 @@ button.primary { background: var(--accent); color: #2b2000; border-color: transp
 .paint-head h2 { font-family: var(--font-display); font-weight: 500; font-size: 20px; margin: 0; flex: 1; }
 .paint-go { display: flex; justify-content: center; padding: 14px 0 6px; }
 .paint-go button { font-size: 18px; padding: 10px 34px; }
-.tpl { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.tpl { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; min-height: 78px; }
+/* phone turned sideways: picture on the left, everything else in a column on the right */
+@media (orientation: landscape) and (max-height: 620px) {
+  #paint { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto auto auto 1fr;
+    grid-template-areas: "board head" "board tpl" "board colors" "board stamps" "board tools" "board go"; gap: 8px 16px; align-content: start;
+    padding-left: calc(12px + env(safe-area-inset-left, 0px)); padding-right: calc(12px + env(safe-area-inset-right, 0px)); }
+  #paint .paint-head { grid-area: head; } #pTpl { grid-area: tpl; } #pColors { grid-area: colors; } #pStamps { grid-area: stamps; }
+  #paint .tools { grid-area: tools; } #paint .paint-go { grid-area: go; padding: 4px 0; align-items: flex-start; }
+  #paint .paint-stage { grid-area: board; height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); padding-top: 0; }
+  #paint .paint-board { height: 100%; }
+  #paint .tpl canvas { width: 48px; height: 48px; } #paint .tpl { min-height: 62px; }
+  #paint .colors button { width: 30px; height: 30px; } #paint .colors, #paint .tools { gap: 6px; }
+  #paint .tools button { padding: 6px 10px; font-size: 14px; } #paint .paint-go button { font-size: 16px; padding: 8px 28px; }
+}
 .tpl button { flex: none; padding: 4px; border-radius: 12px; background: #fff; border: 3px solid transparent; }
 .tpl button.on { border-color: var(--accent); }
 .tpl canvas { display: block; width: 64px; height: 64px; }

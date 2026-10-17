@@ -194,6 +194,7 @@ html[data-world="princess"] .gcard button { background: linear-gradient(#b493e6,
 <section class="paint" id="paint" hidden aria-label="ぬりえ">
   <div class="paint-head">
     <h2>🎨 ぬりえ</h2>
+    <button id="pZukan" title="ずかんを見る">📖 ずかん</button>
     <button id="pPrint" title="線画を印刷して紙に塗る">🖨 印刷</button>
     <button id="pClose" aria-label="とじる">✕</button>
   </div>
@@ -2507,7 +2508,7 @@ function guestThumb(kind) { // draw one visitor on its own (the tank is hidden b
       if (v.kind === 'school') { v.vx = 1; v.x = W * .65; }
       else if (v.kind === 'mola' || v.kind === 'turtle' || v.kind === 'whale') { v.vx = 1; v.x = W * .5; }
       else if (v.kind === 'oarfish' || v.kind === 'momen') v.x = W * .5 + v.L * .45;
-      else if (v.kind === 'squid') v.y = H * .6;
+      else if (v.kind === 'squid' || v.kind === 'urikurage') v.y = H * .6;
       else if (v.kind === 'clione') v.list.forEach((c, i) => { c.y = H * (.45 + (i % 2) * .1); });
       else if (v.kind === 'pachy') { v.a.x = v.cx - v.w * .9; v.b.x = v.cx + v.w * .9; }
       else if (v.kind === 'eels') v.eels.forEach(e => { e.delay = 0; });
@@ -2601,7 +2602,7 @@ const ZUKAN = (() => {
         const img = new Image(); img.src = url; await img.decode();
         addCreature(toCanvas(img), r.name || 'ずかん', {scale: .24, user: true, mode: r.mode, at: {x: W / 2, y: H * .45}});
         creatures[creatures.length - 1].zid = r.id; SND.add();
-        NAV.close('zukan', () => NAV.close('tray'));
+        NAV.close('zukan', () => NAV.close('paint', () => NAV.close('tray')));
       };
       sv.onclick = async () => { const img = new Image(); img.src = url; await img.decode(); saveImage(toCanvas(img)); };
       rm.onclick = async () => { await del(r.id); card.remove(); const n = grid.children.length; info.textContent = n ? `${n}まい ・ タップすると${where}` : 'まだ絵がありません。'; };
@@ -2612,6 +2613,7 @@ const ZUKAN = (() => {
   function close() { NAV.close('zukan'); }
   document.getElementById('zClose').onclick = close;
   document.getElementById('zukanOpen').onclick = open;
+  document.getElementById('pZukan').onclick = open; // from the coloring screen; ◀ / ✕ comes back to it
   return {add, update};
 })();
 

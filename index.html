@@ -242,7 +242,7 @@ function buildScenery() {
   rocks = Array.from({length: Math.round(n * .8)}, () => ({
     x: Math.random() * W, r: 14 + Math.random() * 30, s: 30 + Math.random() * 20
   }));
-  dinoScene = null; ykScene = null; prScene = null; deepScene = null; // rebuilt for the new size on the next frame
+  dinoScene = null; ykScene = null; prScene = null; deepScene = null; ykArea = null; // rebuilt for the new size on the next frame
 }
 const bubbles = [];
 function drawBackground(t) {
@@ -426,7 +426,7 @@ function loop(t) {
   }
   drawVisitors(dt, 'front'); drawFx(dt);
   if (WORLD === 'dino') updateVolcano(dt); else if (WORLD === 'yokai') updateDawn(dt); else if (WORLD === 'princess') updateMidnight(dt); else updateShark(dt);
-  drawRipples(dt); drawBubbles(dt); drawDiveHint(); drawPops(dt); updateDive(dt);
+  drawRipples(dt); drawBubbles(dt); drawDiveHint(); drawYkHint(); drawPops(dt); updateDive(dt); updateYkMove(dt);
   ctx.restore();
   requestAnimationFrame(loop);
 }
@@ -580,6 +580,12 @@ const SND = (() => {
         case 'hitotsume':noise(0, .12, .4, 2000, 800, 1); tone('square', [300, 600], 0, .15, .12); break;
         case 'tengu':    noise(0, 1.2, .5, 300, 3000, .5); break;
         case 'nurikabe': tone('sine', [90, 60], 0, .5, .45); noise(0, .4, .4, 400, 150, .8); tone('triangle', [200, 120], .15, .8, .12); break;
+        case 'tanuki':   tone('sine', [200, 100], 0, .15, .35); noise(.05, .3, .4, 1500, 500, .8); [79, 84].forEach((m, i) => tone('triangle', hz(m), .3 + i * .12, .3, .1)); break;
+        case 'kingyo':   [84, 88, 91, 96].forEach((m, i) => tone('sine', hz(m), i * .1, .5, .08)); break;
+        case 'race':     for (let i = 0; i < 6; i++) tone('square', [600 + i * 60, 900 + i * 60], i * .08, .07, .05); break;
+        case 'noppera':  tone('sine', [400, 800], 0, .3, .12); [84, 88].forEach((m, i) => tone('sine', hz(m), .35 + i * .12, .4, .09)); break;
+        case 'gaikotsu': for (let i = 0; i < 8; i++) noise(i * .07, .04, .45, 3200, 2600, 6); [72, 76, 79].forEach((m, i) => tone('triangle', hz(m), .7 + i * .08, .3, .1)); break;
+        case 'onibi':    noise(0, .7, .35, 500, 2500, .7); tone('sine', [300, 600], 0, .6, .08); break;
         case 'yukionna': noise(0, 1.6, .35, 3500, 1200, .6); [96, 100, 103, 108, 103, 108].forEach((m, i) => tone('sine', hz(m), .2 + i * .12, .7, .06)); break;
         case 'carriage': for (let i = 0; i < 6; i++) noise(i * .17, .05, .5, 2600, 1900, 3); tone('sine', [900, 1400], .3, .25, .1); tone('sine', [1400, 800], .55, .5, .1); break;
         case 'unicorn':  [72, 76, 79, 84, 88, 91, 96, 100].forEach((m, i) => tone('sine', hz(m), i * .06, .9, .08)); break;
@@ -813,7 +819,7 @@ function spawnVisitor(kind) {
 function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
-  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'starprince', 'hakuba', 'yusha', 'aladdin', 'mice', 'majo', 'fairy', 'angel', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : DEEP ? DEEP_GUESTS : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'seahorse', 'manta', 'clione', 'kappa', 'plesio', 'mermaid', 'jinbei', 'dugong', 'kajiki', 'umiushi']).filter(k => k !== lastKind);
+  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'starprince', 'hakuba', 'yusha', 'aladdin', 'mice', 'majo', 'fairy', 'angel', 'dragon', 'butterflies'] : WORLD === 'yokai' ? YK_KINDS[YKA] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : DEEP ? DEEP_GUESTS : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'seahorse', 'manta', 'clione', 'kappa', 'plesio', 'mermaid', 'jinbei', 'dugong', 'kajiki', 'umiushi']).filter(k => k !== lastKind);
   // secret sea guests only come once enough of your own drawings are swimming (samples, guests and the shark don't count)
   const SECRET = {oarfish: 1, kappa: 2, plesio: 3, submarine: 4, mermaid: 5};
   const mine = creatures.filter(c => c.user && !c.ascend && !c.launch).length;
@@ -1200,6 +1206,8 @@ function drawFx(dt) {
       ctx.rotate(f.ph * .5); ctx.beginPath(); ctx.arc(0, 0, f.s * .45, 0, 7); ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, f.s * .18); ctx.lineCap = 'round'; ctx.beginPath();
       for (let k = 0; k < 6; k++) { ctx.moveTo(0, 0); ctx.lineTo(Math.cos(k * Math.PI / 3) * f.s, Math.sin(k * Math.PI / 3) * f.s); } ctx.stroke();
+    } else if (f.k === 'fwp') { // a firework spark
+      f.vy += 140 * dt; ctx.fillStyle = `hsla(${f.hue},100%,65%,${Math.min(1, f.a)})`; ctx.shadowColor = `hsl(${f.hue},100%,60%)`; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(0, 0, f.s, 0, 7); ctx.fill();
     } else if (f.k === 'feather') { // drifts down, rocking side to side
       f.ph = (f.ph || 0) + dt * 3; f.vy = Math.max(f.vy, 40); f.x += Math.sin(f.ph) * 30 * dt; ctx.rotate(Math.sin(f.ph) * .6);
       ctx.fillStyle = '#ffffff'; ctx.strokeStyle = 'rgba(150,170,210,.8)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(0, 0, f.s * .45, f.s * 1.1, 0, 0, 7); ctx.fill(); ctx.stroke();
@@ -1220,7 +1228,7 @@ function drawFx(dt) {
 // tap on a visitor -> its own little show. Returns true when something was tapped.
 function tapVisitors(px, py) {
   if (WORLD === 'dino') return tapDino(px, py);
-  if (WORLD === 'yokai') return tapYokai(px, py);
+  if (WORLD === 'yokai') return tapYokai(px, py) || tapStall(px, py);
   if (WORLD === 'princess') return tapPrincess(px, py);
   if (tapDeep(px, py)) return true;
   const inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
@@ -2483,7 +2491,9 @@ const GUESTS = {
     ['pachy', 'パキケファロサウルス', 'かたい あたまで ずつき！'], ['ufo', 'UFO', 'どこから きたのかな？']],
   yokai: [['karakasa', 'からかさおばけ', '1ぽんあしで ぴょんぴょん'], ['chochin', 'ちょうちんおばけ', 'よるの おまつりを あかるく するよ'], ['momen', 'いったんもめん', 'ながい ぬのが そらを ひらひら'], ['rokuro', 'ろくろくび', 'くびが の〜び〜る〜'],
     ['kitsune', 'きつね', 'きつねびを ともして ぎょうれつ'], ['neko', 'ばけねこ', 'しっぽが ふたつに わかれた ねこ'], ['hitotsume', 'ひとつめこぞう', 'おどかすのが だいすき'], ['tengu', 'てんぐ', 'うちわで おおかぜを おこすよ'],
-    ['oni', 'おに', 'たいこを ドンドン たたくよ'], ['nurikabe', 'ぬりかべ', 'みちを とおせんぼ する かべ'], ['yukionna', 'ゆきおんな', 'つめたい いきで あたりを ゆきげしき']],
+    ['oni', 'おに', 'たいこを ドンドン たたくよ'], ['nurikabe', 'ぬりかべ', 'みちを とおせんぼ する かべ'], ['yukionna', 'ゆきおんな', 'つめたい いきで あたりを ゆきげしき'],
+    ['tanuki', 'ばけだぬき', 'えんにちに あらわれる。はっぱで ドロン！'], ['kingyo', 'きんぎょちょうちん', 'えんにちの そらを およぐ ちょうちん'],
+    ['race', 'おばけリレー', 'おはかの うんどうかい。いちばんは だれかな？'], ['noppera', 'のっぺらぼう', 'かおが ないけど、じつは えがおが すてき'], ['gaikotsu', 'ガイコツ', 'ほねほね ダンスが とくい'], ['onibi', 'おにび', 'あおい ひの たまが くるくる まわる']],
   princess: [['carriage', 'かぼちゃの ばしゃ', 'まほうで かぼちゃが ばしゃに'], ['unicorn', 'ユニコーン', 'にじを よぶ ふしぎな うま'], ['prince', 'おうじさま', 'ダンスが だいすき'], ['prince2', 'バラの おうじさま', 'あかい バラを もってきたよ'],
     ['starprince', 'ほしの おうじさま', 'ちいさな ほしと いっしょに たびを しているよ'], ['hakuba', 'はくばの おうじさま', 'しろい うまで むかえに くるよ'], ['yusha', 'ゆうしゃ', 'つよくて やさしい けんの つかいて'], ['aladdin', 'アラジン', 'まほうの じゅうたんで そらの たび'],
     ['mice', 'ねずみの がくたい', 'パンパカパーン！'], ['majo', 'まほうつかい', 'みんなに おうかんを くれるよ'], ['fairy', 'ようせい', 'キラキラの まほうを かけるよ'], ['angel', 'てんし', 'しあわせを はこんで くるよ'],
@@ -3127,7 +3137,7 @@ const SAMPLES = () => ({sea: samples, dino: dinoSamples, yokai: yokaiSamples, pr
 function setWorld(w) {
   const from = WORLD === w ? null : WORLD;
   WORLD = w; try { localStorage.setItem('suisui-world', w); } catch (_) {}
-  DEEP = false; diveT = null;
+  DEEP = false; diveT = null; YKA = 0; ykT = null;
   visitors.length = 0; shark = null; erupt = null; dawn = null; midnight = null; lava.length = 0; bubbles.length = 0; fx.length = 0;
   nextVisit = clock + 6;
   // each world keeps its own drawings: put this world's away (their 3-minute timer pauses) and bring the other's back
@@ -3143,10 +3153,12 @@ function setWorld(w) {
 }
 function showWorld() {
   const dino = WORLD === 'dino';
-  document.getElementById('desc').textContent = WORLD === 'princess'
+  document.getElementById('desc').textContent = WORLD === 'yokai' && YKA === -1 ? '縁日の屋台にやってきました。屋台をタッチすると、金魚がはねたり、わたあめがふくらんだりします。入れた絵は3分たつと花火といっしょに空へ帰ります。右にスワイプすると神社にもどります。'
+    : WORLD === 'yokai' && YKA === 1 ? 'おはかで おばけの運動会！ おばけたちのリレーや、ほねほねダンスが見られます。入れた絵は3分たつと朝になって空へ帰ります。左にスワイプすると神社にもどります。'
+    : WORLD === 'princess'
     ? 'スキャンした絵や写真を入れると、白い紙の部分を消してお城の庭で動きだします。タッチするとジャンプします。30秒ごとにお客さん（かぼちゃの馬車、ユニコーン、ようせいなど）が通りかかります。入れた絵は3分たつと12時の鐘が鳴って、おうちへ帰っていきます。'
     : WORLD === 'yokai'
-    ? 'スキャンした絵や写真を入れると、白い紙の部分を消して妖怪のおまつりで動きだします。タッチするとジャンプします。30秒ごとにお客さん（からかさおばけ、ちょうちんおばけ、きつねなど）が通りかかります。入れた絵は3分たつと朝になって、空へ帰っていきます。'
+    ? 'スキャンした絵や写真を入れると、白い紙の部分を消して妖怪のおまつりで動きだします。タッチするとジャンプします。30秒ごとにお客さん（からかさおばけ、ちょうちんおばけ、きつねなど）が通りかかります。入れた絵は3分たつと朝になって、空へ帰っていきます。左右にスワイプすると、縁日の屋台やおはかに行けます。'
     : dino
     ? 'スキャンした絵や写真を入れると、白い紙の部分を消して恐竜の世界で動きだします。タッチするとジャンプします。30秒ごとにお客さん（ティラノサウルス、プテラノドン、トリケラトプスなど）が通りかかります。入れた絵は3分たつと火山が噴火して飛んでいきます。'
     : DEEP ? '深海にやってきました。ひかる生きものや、ふしぎな生きものが通りかかります。タッチするとジャンプします。画面を下にスワイプすると、もとの海にもどります。入れた絵は3分たつとサメが食べに来ます。'
@@ -3245,6 +3257,8 @@ function drawYokaiBackground(t) {
   // hills
   ctx.fillStyle = dk > .5 ? '#5f8a6a' : '#2b2152';
   for (const h of S.hills) { ctx.beginPath(); ctx.ellipse(h.x, G, h.r, h.r * .42, 0, Math.PI, 0); ctx.fill(); }
+  if (YKA === 1) { drawHaka(t, frameDt, dk); return; }
+  if (YKA === -1) drawEnnichi(t, frameDt, dk); else {
   // shrine behind the torii
   const T = S.torii, tx = T.x, th = T.h;
   drawShrine(tx + th * .82, G, th, t);
@@ -3260,6 +3274,7 @@ function drawYokaiBackground(t) {
   ctx.fillStyle = 'rgba(200,190,170,.35)'; for (let x = 10; x < W; x += 70) { ctx.beginPath(); ctx.ellipse(x, G + (H - G) * .45, 26, 9, 0, 0, 7); ctx.fill(); }
   ctx.strokeStyle = dk > .5 ? '#4f7a40' : '#3f6a4a'; ctx.lineWidth = 3;
   for (const gr of S.grass) for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(gr.x, G + 4); ctx.quadraticCurveTo(gr.x + k * gr.s * .3, G - gr.s * .6, gr.x + k * gr.s * .6, G - gr.s); ctx.stroke(); }
+  }
   // lantern strings across the top
   for (const row of [0, 1]) {
     const y0 = H * (.04 + row * .08), sag = H * .045, n = Math.max(3, Math.round(W / 190)) + row;
@@ -3478,6 +3493,7 @@ function drawMomen(v) { // a long white cloth fluttering through the sky
 
 /* ---------- yokai visitors ---------- */
 function spawnYokai(kind) {
+  if (YK_NEW.includes(kind)) return spawnYkArea(kind);
   const m = Math.min(W, H), side = Math.random() < .5 ? 1 : -1, G = GROUND();
   const base = {kind, layer: 'front', dir: side, t: 0, step: 0};
   const add = (o) => visitors.push(Object.assign(base, o));
@@ -3494,6 +3510,7 @@ function spawnYokai(kind) {
   else if (kind === 'yukionna') add({s: m * .32, x: side > 0 ? -m * .3 : W + m * .3, y: H * (.42 + Math.random() * .1)});
 }
 function drawYokaiVisitor(v, dt, P) {
+  if (YK_NEW.includes(v.kind)) return drawYkAreaVisitor(v, dt, P);
   const G = GROUND(), act = P >= 0, s = v.s;
   const off = () => v.dir > 0 ? v.x - (v.s || v.L) > W : v.x + (v.s || v.L) < 0;
   if (v.kind === 'momen') {
@@ -3554,6 +3571,7 @@ function drawYokaiVisitor(v, dt, P) {
   return !off();
 }
 function tapYokai(px, py) {
+  if (tapYkArea(px, py)) return true;
   const G = GROUND(), inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
   const start = (v, d, say, sx, sy) => { if (v.act > 0) return false; v.act = d; v.actDur = d; SND.visitor(v.kind); if (say) pops.push({x: sx, y: sy, a: 1, text: say}); return true; };
   for (let i = visitors.length - 1; i >= 0; i--) {
@@ -3582,12 +3600,17 @@ function tapYokai(px, py) {
 /* ---------- dawn: drawings older than LIFE float up into the morning sky ---------- */
 function checkDawn() {
   if (dawn) return;
-  if (expired().length) { dawn = {t: 0, k: 0, said: false}; SND.rooster(); pops.push({x: W / 2, y: H * .2, a: 1, text: 'コケコッコー！ あさだよ〜'}); }
+  if (!expired().length) return;
+  if (YKA === -1) { dawn = {t: 0, k: 0, fw: true, next: 0}; return; } // at the fair: fireworks carry the drawings up into the sky
+  dawn = {t: 0, k: 0, said: false}; SND.rooster(); pops.push({x: W / 2, y: H * .2, a: 1, text: 'コケコッコー！ あさだよ〜'});
 }
 function updateDawn(dt) {
   if (!dawn) return;
   dawn.t += dt;
-  dawn.k = dawn.t < 2 ? dawn.t / 2 : dawn.t < 6 ? 1 : Math.max(0, 1 - (dawn.t - 6) / 2);
+  dawn.k = dawn.fw ? 0 : dawn.t < 2 ? dawn.t / 2 : dawn.t < 6 ? 1 : Math.max(0, 1 - (dawn.t - 6) / 2);
+  if (dawn.fw && dawn.t < 7 && dawn.t > dawn.next) { dawn.next = dawn.t + .45 + Math.random() * .3; const x = W * (.15 + Math.random() * .7), y = H * (.12 + Math.random() * .25), hue = Math.random() * 360, n = 28, m = Math.min(W, H);
+    for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2, sp = m * (.25 + Math.random() * .1); fx.push({k: 'fwp', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, a: 1.4, s: m * .008, hue: (hue + Math.random() * 40) % 360}); }
+    SND.boom(); }
   if (dawn.t > 1.5 && dawn.t < 6) for (const c of expired()) { c.ascend = {a: 1}; c.fear = false; pops.push({x: c.x, y: c.y - c.h * .6, a: 1, text: 'またね〜'}); SND.twinkle(); }
   if (dawn.t > 8) dawn = null;
 }
@@ -4412,6 +4435,7 @@ let swipe0 = null;
 cv.addEventListener('pointerdown', e => { swipe0 = {x: e.clientX, y: e.clientY, t: performance.now()}; }, true);
 cv.addEventListener('pointerup', e => {
   if (!swipe0) return; const dx = e.clientX - swipe0.x, dy = e.clientY - swipe0.y, dtm = performance.now() - swipe0.t; swipe0 = null;
+  if (WORLD === 'yokai' && dtm < 1000 && Math.abs(dx) > Math.min(120, W * .15) && Math.abs(dx) > Math.abs(dy) * 1.4) { startYkMove(dx > 0 ? 1 : -1); return; }
   if (WORLD !== 'sea' || dtm > 1000 || Math.abs(dy) < Math.min(120, H * .15) || Math.abs(dy) < Math.abs(dx) * 1.4) return;
   if (dy < 0 && !DEEP) startDive(true); else if (dy > 0 && DEEP) startDive(false);
 });
@@ -4761,6 +4785,277 @@ function drawHotaruika(x, s, ph, flash = 0) { // firefly squid, a tiny one; cent
   x.save(); x.shadowColor = '#4ac8ff'; x.shadowBlur = s * (.3 + flash); x.fillStyle = `rgba(110,210,255,${Math.min(1, a)})`;
   for (const [u, v] of [[.4, 0], [.2, -.08], [.2, .08], [0, -.05], [0, .05], [-.45, 0]]) { x.beginPath(); x.arc(u * s, v * s, s * (.05 + flash * .03), 0, 7); x.fill(); }
   x.restore();
+}
+
+/* ====================== YOKAI AREAS: swipe sideways ======================
+   finger right ➡ the graveyard (おばけの運動会), finger left ⬅ the fair stalls (縁日). -1 = fair, 0 = shrine, 1 = graveyard */
+let YKA = 0, ykT = null, ykArea = null;
+const YK_NEW = ['tanuki', 'kingyo', 'race', 'noppera', 'gaikotsu', 'onibi'];
+const YK_KINDS = {
+  '0': ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'],
+  '-1': ['tanuki', 'kingyo', 'kitsune', 'neko', 'chochin', 'karakasa'],
+  '1': ['race', 'noppera', 'gaikotsu', 'onibi', 'momen', 'hitotsume'],
+};
+function buildYkArea() {
+  const m = Math.min(W, H), G = GROUND();
+  const n = Math.max(2, Math.min(4, Math.floor(W / 210))), types = ['kingyo', 'wataame', 'shateki', 'omen'].slice(0, n);
+  const sw = Math.min(W / n * .86, H * .48), NG = Math.max(4, Math.round(W / 120));
+  ykArea = {
+    stalls: types.map((type, i) => ({type, x: (i + .5) * W / n, w: sw, h: sw * .95, a: 0, fish: Array.from({length: 4}, () => ({x: Math.random() - .5, ph: Math.random() * 6, j: 0})), fall: -1, puff: 0})),
+    graves: Array.from({length: NG}, (_, i) => ({x: (i + .5 + (Math.random() - .5) * .4) * W / NG, h: m * (.15 + Math.random() * .08), w: m * (.09 + Math.random() * .03), round: Math.random() < .6, back: i % 2})),
+    flies: Array.from({length: 14}, () => ({x: Math.random() * W, y: G - Math.random() * H * .45, ph: Math.random() * 6})),
+    willow: W * (.08 + Math.random() * .08),
+  };
+}
+function startYkMove(d) { // d = +1 (finger moved right) or -1
+  const to = Math.max(-1, Math.min(1, YKA + d));
+  if (ykT || to === YKA || WORLD !== 'yokai') return;
+  ykT = {t: 0, to, d, swapped: false}; SND.whee();
+}
+function updateYkMove(dt) {
+  if (!ykT) return;
+  const T = ykT; T.t += dt;
+  if (!T.swapped && T.t > .55) { T.swapped = true; YKA = T.to; visitors.length = 0; nextVisit = clock + 5 * FAST; lastKind = ''; showWorld(); }
+  const k = Math.max(0, 1 - Math.abs(T.t - .55) / .55);
+  ctx.fillStyle = `rgba(10,6,30,${k * .92})`; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = `rgba(255,220,180,${k * .5})`; ctx.lineWidth = 2;
+  for (let i = 0; i < 20; i++) { const y = (i * 71.3) % H, x = ((i * 113.7 + T.t * 1600 * T.d) % W + W) % W; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - T.d * 50, y); ctx.stroke(); }
+  if (T.t > 1.1) ykT = null;
+}
+function drawYkHint() {
+  if (WORLD !== 'yokai' || ykT) return;
+  const sz = Math.max(12, Math.min(W, H) * .028), y = H - sz * 1.3;
+  ctx.save(); ctx.font = `500 ${sz}px "Kiwi Maru", "Hiragino Maru Gothic ProN", sans-serif`; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,240,220,.55)';
+  const L = {'-1': '', '0': '⬅ えんにち', '1': '⬅ じんじゃ'}[YKA], R = {'-1': 'じんじゃ ➡', '0': 'おはか ➡', '1': ''}[YKA];
+  ctx.textAlign = 'left'; if (L) ctx.fillText(L, sz, y); ctx.textAlign = 'right'; if (R) ctx.fillText(R, W - sz, y);
+  ctx.restore();
+}
+
+/* ---------- the fair (縁日) ---------- */
+function drawEnnichi(t, dt, dk) {
+  if (!ykArea) buildYkArea();
+  const G = GROUND(), m = Math.min(W, H);
+  ctx.fillStyle = dk > .5 ? '#7a6a5a' : '#3a2e3a'; ctx.fillRect(0, G, W, H - G); // packed earth
+  ctx.fillStyle = 'rgba(255,200,150,.08)'; for (let x = 20; x < W; x += 90) { ctx.beginPath(); ctx.ellipse(x, G + (H - G) * .5, 30, 7, 0, 0, 7); ctx.fill(); }
+  for (const S of ykArea.stalls) drawStall(S, t, dt, G, m);
+}
+function drawStall(S, t, dt, G, m) {
+  const c = ctx, x0 = S.x - S.w / 2, x1 = S.x + S.w / 2, top = G - S.h, lw = Math.max(2, S.w * .012);
+  S.a = Math.max(0, S.a - dt); const P = S.a > 0 ? 1 - S.a / S.dur : -1;
+  c.lineJoin = c.lineCap = 'round'; c.lineWidth = lw;
+  c.fillStyle = '#7a4a2a'; c.strokeStyle = '#3a2216'; for (const px of [x0 + S.w * .04, x1 - S.w * .04]) { c.fillRect(px - S.w * .02, top, S.w * .04, S.h); } // posts
+  c.fillStyle = '#5a3a28'; c.fillRect(x0, top + S.h * .2, S.w, S.h * .45); // back wall
+  // striped awning
+  const aw = S.h * .2, stripes = 8, col = {kingyo: '#3a7ad8', wataame: '#ff7ab0', shateki: '#e0442f', omen: '#3aa060'}[S.type];
+  for (let i = 0; i < stripes; i++) { c.fillStyle = i % 2 ? '#fff6e8' : col; c.beginPath(); const a = x0 - S.w * .04 + i * (S.w * 1.08) / stripes, b = a + (S.w * 1.08) / stripes; c.moveTo(a, top); c.lineTo(b, top); c.lineTo(b, top + aw); c.quadraticCurveTo((a + b) / 2, top + aw * 1.35, a, top + aw); c.closePath(); c.fill(); }
+  c.strokeStyle = '#3a2216'; c.strokeRect(x0 - S.w * .04, top, S.w * 1.08, aw * .25);
+  // sign
+  const label = {kingyo: 'きんぎょすくい', wataame: 'わたあめ', shateki: 'しゃてき', omen: 'おめん'}[S.type], fs = Math.min(S.w * .11, S.h * .09);
+  c.fillStyle = '#fff6e0'; c.strokeStyle = '#7a4a2a'; c.fillRect(S.x - S.w * .34, top - fs * 1.6, S.w * .68, fs * 1.4); c.strokeRect(S.x - S.w * .34, top - fs * 1.6, S.w * .68, fs * 1.4);
+  c.fillStyle = '#c0302a'; c.font = `700 ${fs}px "Kiwi Maru", "Hiragino Maru Gothic ProN", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(label, S.x, top - fs * .9);
+  // little lantern
+  c.save(); c.translate(x1 - S.w * .06, top + aw * 1.2); c.rotate(Math.sin(t * .002 + S.x) * .1); lanternShape(c, S.w * .09, true); c.restore();
+  // counter
+  const cy = G - S.h * .32;
+  c.fillStyle = '#b07a48'; c.strokeStyle = '#5a3a20'; c.fillRect(x0, cy, S.w, S.h * .32); c.strokeRect(x0, cy, S.w, S.h * .32);
+  c.strokeStyle = 'rgba(90,58,32,.5)'; for (let k = 1; k < 5; k++) { c.beginPath(); c.moveTo(x0 + k * S.w / 5, cy); c.lineTo(x0 + k * S.w / 5, G); c.stroke(); }
+  const sx = S.w, mid = top + aw + (cy - top - aw) / 2;
+  if (S.type === 'kingyo') { // a tub of goldfish on the counter; tap -> they leap out with a splash
+    c.fillStyle = '#5ab0e8'; c.strokeStyle = '#2a6aa8'; c.beginPath(); c.ellipse(S.x, cy, sx * .42, sx * .1, 0, 0, 7); c.fill(); c.stroke();
+    for (const f of S.fish) { f.ph += dt * 2; if (f.j > 0) f.j = Math.max(0, f.j - dt * 1.2);
+      const fx2 = S.x + (f.x + Math.sin(f.ph) * .15) * sx * .7, fy2 = cy - Math.sin(f.j * Math.PI) * S.h * .5;
+      c.save(); c.translate(fx2, fy2); c.scale(Math.cos(f.ph) > 0 ? 1 : -1, 1); if (f.j) c.rotate(-Math.cos(f.j * Math.PI) * .8);
+      c.fillStyle = '#ff5a2a'; c.beginPath(); c.ellipse(0, 0, sx * .045, sx * .025, 0, 0, 7); c.fill(); c.beginPath(); c.moveTo(-sx * .04, 0); c.lineTo(-sx * .075, -sx * .025); c.lineTo(-sx * .075, sx * .025); c.fill(); c.restore(); }
+    for (let k = 0; k < 3; k++) { c.fillStyle = ['#ff8ac8', '#8ad0ff', '#ffe066'][k]; c.beginPath(); c.arc(x0 + sx * (.2 + k * .3), mid + sx * .05, sx * .05, 0, 7); c.fill(); } // water balloons on the wall
+  } else if (S.type === 'wataame') { // cotton candy on a stick; tap -> it puffs up huge
+    S.puff = P >= 0 ? Math.sin(P * Math.PI) : 0;
+    for (let k = 0; k < 4; k++) { const bx = x0 + sx * (.15 + k * .23), by = mid - sx * .02; c.fillStyle = ['#ffc0e0', '#c0e8ff', '#fff0a0', '#d8c0ff'][k]; c.strokeStyle = '#8a6a8a'; c.beginPath(); c.moveTo(bx - sx * .07, by - sx * .1); c.lineTo(bx + sx * .07, by - sx * .1); c.lineTo(bx + sx * .06, by + sx * .1); c.lineTo(bx - sx * .06, by + sx * .1); c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = '#333'; for (const e of [-1, 1]) { c.beginPath(); c.arc(bx + e * sx * .02, by - sx * .01, sx * .006, 0, 7); c.fill(); } c.strokeStyle = '#333'; c.beginPath(); c.arc(bx, by + sx * .01, sx * .015, .3, Math.PI - .3); c.stroke(); } // character bags
+    const r = sx * (.09 + S.puff * .18), cx2 = S.x, cyy = cy - sx * .12 - r * .6;
+    c.strokeStyle = '#d8c8a0'; c.lineWidth = sx * .012; c.beginPath(); c.moveTo(cx2, cy); c.lineTo(cx2, cyy); c.stroke(); c.lineWidth = lw;
+    c.fillStyle = '#ffc8e4'; for (const [a, b, rr] of [[0, 0, 1], [-.5, .2, .7], [.5, .2, .7], [-.3, -.45, .7], [.3, -.45, .7]]) { c.beginPath(); c.arc(cx2 + a * r, cyy + b * r, r * rr, 0, 7); c.fill(); }
+  } else if (S.type === 'shateki') { // prizes on shelves; tap -> one falls over, then pops back up
+    c.fillStyle = '#7a4a2a'; for (const k of [0, 1]) c.fillRect(x0 + sx * .06, mid - sx * .02 + k * sx * .16, sx * .88, sx * .02);
+    if (P < 0 && S.fall >= 0) S.fall = -1;
+    for (let i = 0; i < 6; i++) {
+      const row = i < 3 ? 0 : 1, px = x0 + sx * (.2 + (i % 3) * .3), py = mid - sx * .02 + row * sx * .16, fallen = S.fall === i ? Math.min(1, P * 4) : 0;
+      c.save(); c.translate(px, py); c.rotate(fallen * 1.4); c.globalAlpha = 1 - (P > .6 && S.fall === i ? (P - .6) * 2 : 0);
+      if (i % 3 === 0) { c.fillStyle = '#e0442f'; c.beginPath(); c.ellipse(0, -sx * .05, sx * .04, sx * .05, 0, 0, 7); c.fill(); c.fillStyle = '#fff'; c.beginPath(); c.arc(0, -sx * .06, sx * .022, 0, 7); c.fill(); } // daruma
+      else if (i % 3 === 1) { c.fillStyle = ['#5ab0ff', '#ffd84a'][row]; c.fillRect(-sx * .04, -sx * .08, sx * .08, sx * .08); c.fillStyle = '#e04a5a'; c.fillRect(-sx * .045, -sx * .05, sx * .09, sx * .015); } // gift box
+      else { c.fillStyle = '#c9a07a'; c.beginPath(); c.arc(0, -sx * .045, sx * .035, 0, 7); c.fill(); for (const e of [-1, 1]) { c.beginPath(); c.arc(e * sx * .028, -sx * .08, sx * .014, 0, 7); c.fill(); } } // teddy
+      c.restore();
+    }
+    c.fillStyle = '#5a3a20'; c.save(); c.translate(x1 - sx * .2, cy - sx * .02); c.rotate(-.15); c.fillRect(-sx * .18, -sx * .015, sx * .2, sx * .03); c.fillRect(-sx * .05, 0, sx * .03, sx * .06); c.restore(); // cork gun
+  } else { // omen: masks hanging on the wall; tap -> they all spin round
+    const spin = P >= 0 ? P * Math.PI * 4 : 0;
+    for (let i = 0; i < 4; i++) {
+      const px = x0 + sx * (.15 + i * .233), py = mid, r = sx * .085;
+      c.save(); c.translate(px, py); c.scale(Math.cos(spin + i * .4), 1);
+      const face = ['fox', 'hyotto', 'oni', 'ghost'][i];
+      c.fillStyle = {fox: '#fff8f0', hyotto: '#ffe2c0', oni: '#e0442f', ghost: '#f0f4ff'}[face]; c.strokeStyle = '#555'; c.beginPath(); c.arc(0, 0, r, 0, 7); c.fill(); c.stroke();
+      if (face === 'fox') { c.fillStyle = '#fff8f0'; for (const e of [-1, 1]) { c.beginPath(); c.moveTo(e * r * .4, -r * .8); c.lineTo(e * r * .8, -r * 1.3); c.lineTo(e * r * .9, -r * .5); c.fill(); c.stroke(); } c.strokeStyle = '#e0442f'; c.lineWidth = r * .1; for (const e of [-1, 1]) { c.beginPath(); c.moveTo(e * r * .15, -r * .1); c.lineTo(e * r * .55, -r * .25); c.stroke(); } c.lineWidth = lw; }
+      else if (face === 'hyotto') { c.fillStyle = '#222'; for (const e of [-1, 1]) { c.beginPath(); c.arc(e * r * .35, -r * .15, r * .1, 0, 7); c.fill(); } c.fillStyle = '#e88a7a'; c.beginPath(); c.ellipse(r * .2, r * .45, r * .18, r * .12, 0, 0, 7); c.fill(); }
+      else if (face === 'oni') { c.fillStyle = '#ffd84a'; for (const e of [-1, 1]) { c.beginPath(); c.moveTo(e * r * .3, -r * .85); c.lineTo(e * r * .45, -r * 1.3); c.lineTo(e * r * .6, -r * .75); c.fill(); } c.fillStyle = '#222'; for (const e of [-1, 1]) { c.beginPath(); c.arc(e * r * .35, -r * .1, r * .1, 0, 7); c.fill(); } c.fillStyle = '#fff'; for (const e of [-1, 1]) { c.beginPath(); c.moveTo(e * r * .3, r * .3); c.lineTo(e * r * .2, r * .55); c.lineTo(e * r * .1, r * .3); c.fill(); } }
+      else { c.fillStyle = '#222'; for (const e of [-1, 1]) { c.beginPath(); c.ellipse(e * r * .3, -r * .1, r * .1, r * .15, 0, 0, 7); c.fill(); } c.fillStyle = '#ff6b8a'; c.beginPath(); c.ellipse(0, r * .35, r * .12, r * .16, 0, 0, 7); c.fill(); }
+      c.restore();
+    }
+  }
+}
+function tapStall(px, py) {
+  if (YKA !== -1 || !ykArea) return false;
+  const G = GROUND();
+  for (const S of ykArea.stalls) {
+    if (px < S.x - S.w / 2 || px > S.x + S.w / 2 || py < G - S.h - S.h * .2 || py > G) continue;
+    if (S.a > 0) return true;
+    S.dur = S.a = {kingyo: 1.5, wataame: 2, shateki: 2.2, omen: 1.6}[S.type];
+    if (S.type === 'kingyo') { S.fish.forEach((f, i) => { f.j = 1 - i * .12; }); burst('drop', S.x, G - S.h * .32, 16, S.w * .015, 220); SND.water(); }
+    else if (S.type === 'wataame') { burst('heart', S.x, G - S.h * .7, 6, S.w * .03, 100); SND.visitor('fairy'); }
+    else if (S.type === 'shateki') { S.fall = Math.floor(Math.random() * 6); burst('spark', S.x, G - S.h * .6, 10, S.w * .025, 180); SND.bonk(); }
+    else { SND.visitor('kitsune'); }
+    return true;
+  }
+  return false;
+}
+
+/* ---------- the graveyard sports day (おばけの運動会) ---------- */
+function drawHaka(t, dt, dk) {
+  if (!ykArea) buildYkArea();
+  const G = GROUND(), m = Math.min(W, H), A = ykArea;
+  // willow tree
+  const wx = A.willow; ctx.strokeStyle = '#2a2018'; ctx.lineWidth = m * .025; ctx.beginPath(); ctx.moveTo(wx, G); ctx.quadraticCurveTo(wx + m * .04, G - m * .2, wx, G - m * .38); ctx.stroke();
+  ctx.strokeStyle = dk > .5 ? '#6a9a4a' : '#2f5a3a'; ctx.lineWidth = 2;
+  for (let k = 0; k < 18; k++) { const a = (k / 17 - .5) * 2.4, ex = wx + Math.sin(a) * m * .2; ctx.beginPath(); ctx.moveTo(wx, G - m * .38); ctx.quadraticCurveTo(ex, G - m * .42, ex + Math.sin(t * .001 + k) * m * .02, G - m * (.12 + (k % 3) * .04)); ctx.stroke(); }
+  ctx.fillStyle = dk > .5 ? '#6b9a5a' : '#262e3a'; ctx.beginPath(); ctx.moveTo(0, H); for (let x = 0; x <= W; x += 20) ctx.lineTo(x, G + Math.sin(x * .01) * 4); ctx.lineTo(W, H); ctx.fill(); // ground
+  // bunting for the sports day
+  const cols = ['#ff5a5a', '#ffd84a', '#5ab0ff', '#7ed36b', '#c9a0ff'];
+  for (const row of [0, 1]) { const y0 = H * (.05 + row * .09), sag = H * .04, n = Math.max(8, Math.round(W / 50));
+    ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, y0); ctx.quadraticCurveTo(W / 2, y0 + sag * 2, W, y0); ctx.stroke();
+    for (let i = 0; i < n; i++) { const u = (i + .5) / n, x = u * W, y = y0 + 4 * sag * u * (1 - u), f = m * .025; ctx.fillStyle = cols[(i + row * 2) % cols.length]; ctx.beginPath(); ctx.moveTo(x - f * .7, y); ctx.lineTo(x + f * .7, y); ctx.lineTo(x, y + f * 1.4 + Math.sin(t * .003 + i) * f * .15); ctx.closePath(); ctx.fill(); } }
+  // gravestones and wooden sticks
+  for (const g of A.graves) {
+    const x = g.x, h = g.h * (g.back ? .8 : 1), w = g.w * (g.back ? .8 : 1), y = G + (g.back ? -4 : 6);
+    ctx.fillStyle = '#7a7890'; ctx.fillRect(x - w * .7, y - h * .15, w * 1.4, h * .15); // base
+    ctx.fillStyle = g.back ? '#8a88a0' : '#9a98b0'; ctx.strokeStyle = '#4a485a'; ctx.lineWidth = 2;
+    ctx.beginPath(); if (g.round) { ctx.moveTo(x - w / 2, y - h * .15); ctx.lineTo(x - w / 2, y - h + w / 2); ctx.arc(x, y - h + w / 2, w / 2, Math.PI, 0); ctx.lineTo(x + w / 2, y - h * .15); } else ctx.rect(x - w / 2, y - h, w, h * .85); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(60,58,80,.5)'; ctx.beginPath(); ctx.moveTo(x, y - h * .8); ctx.lineTo(x, y - h * .3); ctx.stroke();
+    ctx.fillStyle = '#c8a878'; for (const k of [1, 1.25]) ctx.fillRect(x + w * .55 * k, y - h * 1.1, w * .1, h * 1.05); // sotoba
+  }
+  for (const f of A.flies) { f.ph += dt; const a = Math.max(0, Math.sin(f.ph * 2)); ctx.fillStyle = `rgba(190,255,120,${a * (1 - dk)})`; ctx.shadowColor = '#c8ff80'; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(f.x + Math.sin(f.ph * .7) * 20, f.y + Math.cos(f.ph * .5) * 12, 2.2, 0, 7); ctx.fill(); ctx.shadowBlur = 0; }
+}
+
+/* ---------- new yokai guests ---------- */
+function spawnYkArea(kind) {
+  const m = Math.min(W, H), side = Math.random() < .5 ? 1 : -1, G = GROUND(), from = d => side > 0 ? -d : W + d;
+  const add = o => visitors.push(Object.assign({kind, layer: 'front', dir: side, t: 0, step: 0}, o));
+  if (kind === 'tanuki') add({s: m * .24, x: from(m * .2), y: G});
+  else if (kind === 'kingyo') add({s: m * .12, x: from(m * .5), y: H * (.28 + Math.random() * .15)});
+  else if (kind === 'race') add({s: m * .17, x: from(m * .2), y: G});
+  else if (kind === 'noppera') add({s: m * .34, x: from(m * .15), y: G});
+  else if (kind === 'gaikotsu') add({s: m * .38, x: from(m * .15), y: G});
+  else if (kind === 'onibi') add({s: m * .05, x: from(m * .2), y: H * (.35 + Math.random() * .2)});
+}
+function drawYkAreaVisitor(v, dt, P) {
+  const G = GROUND(), act = P >= 0, s = v.s, gone = e => v.dir > 0 ? v.x - e > W : v.x + e < 0;
+  switch (v.kind) {
+    case 'tanuki': { // tap -> poof! it turns into a tea kettle for a moment
+      if (!act) { v.x += v.dir * 45 * dt; v.step += dt * 7; }
+      const kettle = act && P > .15 && P < .85, bob = Math.abs(Math.sin(v.step)) * s * .04;
+      ctx.translate(v.x, G - s * .44 - bob); ctx.scale(v.dir, 1);
+      if (kettle) drawKettle(ctx, s); else drawTanuki(ctx, s);
+      return !gone(s * .7);
+    }
+    case 'kingyo': { // three goldfish lanterns swimming through the air; tap -> they glow and wiggle
+      v.x += v.dir * 40 * dt; const glow = act ? Math.sin(P * Math.PI) : 0;
+      for (let i = 0; i < 3; i++) { ctx.save(); ctx.translate(v.x - v.dir * i * s * 2.2, v.y + Math.sin(v.t * 1.5 + i * 2) * s * .5 + (i % 2) * s * .6); ctx.scale(v.dir, 1); ctx.rotate(Math.sin(v.t * 2 + i) * .08); drawKingyoLantern(ctx, s, v.t * (act ? 3 : 1) + i, glow); ctx.restore(); }
+      return v.dir > 0 ? v.x - s * 6 < W : v.x + s * 6 > 0;
+    }
+    case 'race': { // three little ghosts in headbands running a relay; tap -> they put on a burst of speed
+      v.x += v.dir * (act ? 260 : 90) * dt; v.step += dt * (act ? 18 : 10);
+      for (let i = 0; i < 3; i++) { ctx.save(); const bx = v.x - v.dir * i * s * 1.3, by = G - s * .6 - Math.abs(Math.sin(v.step + i)) * s * .15; ctx.translate(bx, by); ctx.scale(v.dir, 1); ctx.rotate(.15); drawGhost(ctx, s, v.step + i);
+        ctx.fillStyle = ['#ff5a5a', '#ffffff', '#5ab0ff'][i]; ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.rect(-s * .4, -s * .32, s * .8, s * .08); ctx.fill(); ctx.stroke(); // headband
+        ctx.beginPath(); ctx.moveTo(-s * .38, -s * .28); ctx.lineTo(-s * .62, -s * .36 + Math.sin(v.step * 2) * s * .05); ctx.lineTo(-s * .6, -s * .24); ctx.fill(); ctx.restore();
+        if (act && Math.random() < .3) fx.push({k: 'spark', x: bx - v.dir * s * .4, y: by + s * .2, vx: -v.dir * 80, vy: 0, a: .7, s: s * .06}); }
+      const tail = v.x - v.dir * 2.6 * s; return v.dir > 0 ? tail - s < W : tail + s > 0;
+    }
+    case 'noppera': { // a faceless lady; tap -> a big friendly face appears
+      if (!act) { v.x += v.dir * 35 * dt; v.step += dt * 5; }
+      ctx.translate(v.x, G); ctx.scale(v.dir, 1); drawNoppera(ctx, s, v.step, act ? Math.sin(Math.min(1, P * 3) * Math.PI / 2) * (P < .8 ? 1 : (1 - P) * 5) : 0);
+      return !gone(s * .4);
+    }
+    case 'gaikotsu': { // a dancing skeleton; tap -> its bones fly apart and click back together
+      if (!act) { v.x += v.dir * 40 * dt; } v.step += dt * 6;
+      const e = act ? Math.sin(P * Math.PI) : 0;
+      ctx.translate(v.x, G); ctx.scale(v.dir, 1); drawSkeleton(ctx, s, v.step, e);
+      return !gone(s * .4);
+    }
+    case 'onibi': { // five blue will-o'-wisps circling; tap -> they flare up big
+      v.x += v.dir * 45 * dt; const fl = act ? Math.sin(P * Math.PI) : 0;
+      for (let i = 0; i < 5; i++) { const a = v.t * 1.6 + i * Math.PI * 2 / 5, r = s * (2.2 + fl * .8), x = v.x + Math.cos(a) * r, y = v.y + Math.sin(a) * r * .6, rr = s * (1 + fl * .5);
+        ctx.save(); ctx.translate(x, y); ctx.fillStyle = `rgba(140,210,255,${.75 + fl * .25})`; ctx.shadowColor = '#8fe0ff'; ctx.shadowBlur = 20 + fl * 30;
+        ctx.beginPath(); ctx.arc(0, 0, rr, 0, 7); ctx.moveTo(-rr, 0); ctx.quadraticCurveTo(-rr * .3, -rr * 2.6, Math.sin(v.t * 6 + i) * rr * .4, -rr * 2.8); ctx.quadraticCurveTo(rr * .4, -rr * 1.4, rr, 0); ctx.fill(); ctx.restore(); }
+      return !gone(s * 6);
+    }
+  }
+  return false;
+}
+function tapYkArea(px, py) {
+  const G = GROUND(), inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
+  const start = (v, d) => { if (v.act > 0) return false; v.act = d; v.actDur = d; SND.visitor(v.kind); return true; };
+  for (let i = visitors.length - 1; i >= 0; i--) {
+    const v = visitors[i], s = v.s; if (!YK_NEW.includes(v.kind)) continue;
+    switch (v.kind) {
+      case 'tanuki': if (inBox(v.x, G - s * .45, s * .8, s * .9) && start(v, 1.8)) { fx.push({k: 'puff', x: v.x, y: G - s * .45, vx: 0, vy: 0, a: 1, s: s * .9}); return true; } break;
+      case 'kingyo': for (let k = 0; k < 3; k++) if (inBox(v.x - v.dir * k * s * 2.2, v.y + (k % 2) * s * .6, s * 1.6, s * 1.6) && start(v, 2)) return true; break;
+      case 'race': if (inBox(v.x - v.dir * s * 1.3, G - s * .6, s * 3.6, s, 15) && start(v, 1.6)) return true; break;
+      case 'noppera': if (inBox(v.x, G - s * .55, s * .5, s * 1.1) && start(v, 2.2)) return true; break;
+      case 'gaikotsu': if (inBox(v.x, G - s * .5, s * .6, s) && start(v, 1.6)) return true; break;
+      case 'onibi': if (inBox(v.x, v.y, s * 6, s * 4) && start(v, 1.8)) return true; break;
+    }
+  }
+  return false;
+}
+function drawKettle(x, s) { // the tanuki's tea-kettle disguise (still with a tail and a face)
+  x.lineJoin = x.lineCap = 'round'; x.lineWidth = Math.max(2, s * .03);
+  x.fillStyle = '#9a6a42'; x.strokeStyle = '#4a2f1a'; x.beginPath(); x.moveTo(-s * .3, s * .2); x.quadraticCurveTo(-s * .62, s * .1, -s * .55, -s * .15); x.quadraticCurveTo(-s * .4, s * .05, -s * .25, s * .05); x.fill(); x.stroke();
+  x.fillStyle = '#5a5a66'; x.strokeStyle = '#2a2a33'; x.beginPath(); x.ellipse(0, s * .12, s * .34, s * .28, 0, 0, 7); x.fill(); x.stroke();
+  x.beginPath(); x.moveTo(s * .3, s * .05); x.quadraticCurveTo(s * .5, s * .0, s * .55, -s * .15); x.lineTo(s * .48, -s * .17); x.quadraticCurveTo(s * .45, -s * .05, s * .3, -s * .05); x.fill(); x.stroke(); // spout
+  x.fillStyle = '#6a6a76'; x.fillRect(-s * .22, -s * .2, s * .44, s * .08); x.strokeRect(-s * .22, -s * .2, s * .44, s * .08);
+  x.strokeStyle = '#2a2a33'; x.lineWidth = s * .03; x.beginPath(); x.arc(0, -s * .2, s * .2, Math.PI, 0); x.stroke(); // handle
+  x.fillStyle = '#fff'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .1, s * .08, s * .05, 0, 7); x.fill(); } x.fillStyle = '#222'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .1 + s * .01, s * .09, s * .028, 0, 7); x.fill(); }
+  x.strokeStyle = '#222'; x.lineWidth = Math.max(1.5, s * .02); x.beginPath(); x.arc(0, s * .2, s * .06, .3, Math.PI - .3); x.stroke();
+}
+function drawKingyoLantern(x, s, t, glow = 0) { // a goldfish-shaped paper lantern, facing right; centred
+  x.save(); x.shadowColor = '#ffb060'; x.shadowBlur = s * (.3 + glow * .8);
+  const tail = Math.sin(t * 4) * .3;
+  x.fillStyle = `rgb(255,${110 + glow * 60},${80 + glow * 40})`; x.strokeStyle = '#8a2a1a'; x.lineWidth = Math.max(1.5, s * .05);
+  x.save(); x.translate(-s * .8, 0); x.rotate(tail); x.beginPath(); x.moveTo(0, 0); x.quadraticCurveTo(-s * .5, -s * .7, -s * .7, -s * .5); x.quadraticCurveTo(-s * .4, 0, -s * .7, s * .5); x.quadraticCurveTo(-s * .5, s * .7, 0, 0); x.fill(); x.stroke(); x.restore();
+  x.beginPath(); x.ellipse(0, 0, s * .9, s * .65, 0, 0, 7); x.fill(); x.stroke(); x.shadowBlur = 0;
+  x.strokeStyle = 'rgba(140,40,20,.4)'; for (const k of [-.4, 0, .4]) { x.beginPath(); x.ellipse(k * s, 0, s * .12, s * .6, 0, 0, 7); x.stroke(); }
+  x.fillStyle = '#222'; x.fillRect(-s * .2, -s * .82, s * .4, s * .14); x.strokeStyle = '#5a4030'; x.beginPath(); x.moveTo(0, -s * .82); x.lineTo(0, -s * 1.2); x.stroke();
+  x.fillStyle = '#fff'; x.beginPath(); x.arc(s * .55, -s * .15, s * .14, 0, 7); x.fill(); x.fillStyle = '#222'; x.beginPath(); x.arc(s * .58, -s * .15, s * .07, 0, 7); x.fill();
+  x.restore();
+}
+function drawNoppera(x, s, step, face = 0) { // feet at (0, 0)
+  const lw = Math.max(2, s * .016), b = Math.abs(Math.sin(step)) * s * .015; x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw; x.translate(0, -b);
+  x.fillStyle = '#7a9ad8'; x.strokeStyle = '#2a4a8a'; x.beginPath(); x.moveTo(-s * .12, -s * .62); x.lineTo(s * .12, -s * .62); x.lineTo(s * .2, 0); x.lineTo(-s * .2, 0); x.closePath(); x.fill(); x.stroke(); // kimono
+  x.strokeStyle = 'rgba(255,255,255,.6)'; for (const [a, b2] of [[-.08, -.4], [.06, -.25], [-.1, -.12], [.1, -.5]]) { x.beginPath(); x.arc(a * s, b2 * s, s * .02, 0, 7); x.stroke(); }
+  x.fillStyle = '#e8a040'; x.fillRect(-s * .13, -s * .45, s * .26, s * .05); // obi
+  x.fillStyle = '#fbe8d8'; x.strokeStyle = '#c8a088'; x.beginPath(); x.ellipse(0, -s * .76, s * .11, s * .13, 0, 0, 7); x.fill(); x.stroke(); // the (blank) face
+  x.fillStyle = '#222'; x.beginPath(); x.arc(0, -s * .92, s * .07, 0, 7); x.fill(); x.beginPath(); x.moveTo(-s * .11, -s * .8); x.quadraticCurveTo(-s * .12, -s * .9, 0, -s * .9); x.quadraticCurveTo(s * .12, -s * .9, s * .11, -s * .8); x.quadraticCurveTo(s * .05, -s * .86, -s * .11, -s * .8); x.fill(); // hair
+  if (face > 0) { x.globalAlpha = face; x.fillStyle = '#222'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .045, -s * .77, s * .015, 0, 7); x.fill(); }
+    x.fillStyle = '#e06a7a'; x.beginPath(); x.arc(0, -s * .71, s * .035, 0, Math.PI); x.fill(); x.fillStyle = 'rgba(255,130,150,.5)'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .07, -s * .73, s * .02, 0, 7); x.fill(); } x.globalAlpha = 1; }
+}
+function drawSkeleton(x, s, step, e = 0) { // a cartoon skeleton dancing; e = how far its bones have flown apart; feet at (0, 0)
+  x.lineCap = 'round'; const bone = '#f4f2ea', edge = '#6a6878', sw = Math.sin(step) * .4;
+  const part = (dx, dy, f) => { x.save(); x.translate(dx * e * s, dy * e * s); x.rotate(e * dx * 2); f(); x.restore(); };
+  const stick = (x1, y1, x2, y2, w) => { x.strokeStyle = edge; x.lineWidth = w + 3; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke(); x.strokeStyle = bone; x.lineWidth = w; x.stroke(); };
+  for (const k of [-1, 1]) part(k * .3, .2, () => stick(k * s * .05, -s * .4, k * s * .08 + (k > 0 ? sw : -sw) * s * .1, -s * .02, s * .035)); // legs
+  part(0, .3, () => { x.fillStyle = bone; x.strokeStyle = edge; x.lineWidth = 2; x.beginPath(); x.ellipse(0, -s * .42, s * .1, s * .045, 0, 0, 7); x.fill(); x.stroke(); }); // hips
+  part(0, -.1, () => { stick(0, -s * .42, 0, -s * .72, s * .03); for (let k = 0; k < 3; k++) stick(-s * .1, -s * (.52 + k * .06), s * .1, -s * (.52 + k * .06), s * .022); }); // spine and ribs
+  for (const k of [-1, 1]) part(k * .5, -.2, () => { const hx = k * s * .2, hy = -s * (.7 + (k > 0 ? sw : -sw) * .25); stick(k * s * .06, -s * .68, hx, hy, s * .03); x.fillStyle = bone; x.beginPath(); x.arc(hx, hy, s * .025, 0, 7); x.fill(); }); // arms waving
+  part(0, -.6, () => { x.fillStyle = bone; x.strokeStyle = edge; x.lineWidth = 2; x.beginPath(); x.arc(0, -s * .85, s * .12, 0, 7); x.fill(); x.stroke();
+    x.fillStyle = '#3a3848'; for (const k of [-1, 1]) { x.beginPath(); x.ellipse(k * s * .045, -s * .86, s * .03, s * .035, 0, 0, 7); x.fill(); } x.beginPath(); x.moveTo(0, -s * .82); x.lineTo(-s * .012, -s * .8); x.lineTo(s * .012, -s * .8); x.fill();
+    x.strokeStyle = '#3a3848'; x.lineWidth = 1.5; x.beginPath(); x.arc(0, -s * .8, s * .05, .4, Math.PI - .4); x.stroke(); }); // skull with a grin
 }
 
 // no pinch-zoom or double-tap zoom anywhere (iOS Safari ignores user-scalable=no, so block the gestures too)

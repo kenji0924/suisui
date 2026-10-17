@@ -3209,10 +3209,14 @@ function lanternShape(x, s, lit) { // a round paper lantern (chochin), centred
   x.strokeStyle = 'rgba(120,30,20,.45)'; x.lineWidth = Math.max(1, s * .03);
   for (let k = -2; k <= 2; k++) { x.beginPath(); x.ellipse(0, k * s * .17, s * .45 * Math.sqrt(1 - Math.pow(k * .17 / .52, 2)), s * .04, 0, 0, Math.PI * 2); x.stroke(); }
 }
-function drawShrine(cx, G, u, t) { // a small Shinto shrine (yashiro): stone base, red pillars, gabled roof with chigi and katsuogi, rope and bell
+function foxSpot() { // where the stone fox sits: right of the right stone lantern, or in the lantern's place on narrow screens
+  const T = ykScene ? ykScene.torii : {x: W * .2, h: Math.min(H * .34, Math.min(W, H) * .5)}, cx = T.x + T.h * .82, far = cx + T.h * .95;
+  return far < W - T.h * .2 ? {x: far, lamp: true} : {x: cx + T.h * .62, lamp: false};
+}
+function drawShrine(cx, G, u, t, rightLamp = true) { // a small Shinto shrine (yashiro): stone base, red pillars, gabled roof with chigi and katsuogi, rope and bell
   const c = ctx, lw = Math.max(1.5, u * .008); c.lineJoin = c.lineCap = 'round'; c.lineWidth = lw;
   // stone lanterns either side
-  for (const k of [-1, 1]) { const lx = cx + k * u * .62; c.fillStyle = '#8a8798'; c.strokeStyle = '#4a4858';
+  for (const k of rightLamp ? [-1, 1] : [-1]) { const lx = cx + k * u * .62; c.fillStyle = '#8a8798'; c.strokeStyle = '#4a4858';
     c.fillRect(lx - u * .03, G - u * .2, u * .06, u * .2); c.fillRect(lx - u * .06, G - u * .03, u * .12, u * .03);
     c.beginPath(); c.moveTo(lx - u * .07, G - u * .27); c.lineTo(lx, G - u * .32); c.lineTo(lx + u * .07, G - u * .27); c.closePath(); c.fill(); c.stroke();
     c.fillStyle = '#ffd27a'; c.shadowColor = '#ffb347'; c.shadowBlur = u * .06; c.fillRect(lx - u * .035, G - u * .26, u * .07, u * .06); c.shadowBlur = 0; c.strokeRect(lx - u * .035, G - u * .26, u * .07, u * .06); }
@@ -3281,9 +3285,9 @@ function drawYokaiBackground(t) {
   if (YKA === -1) drawEnnichi(t, frameDt, dk); else {
   // shrine behind the torii
   const T = S.torii, tx = T.x, th = T.h;
-  drawShrine(tx + th * .82, G, th, t);
+  const FS = foxSpot(); drawShrine(tx + th * .82, G, th, t, FS.lamp);
   { const ky = visitors.find(v => v.kind === 'kyubi'); // the stone fox beside the shrine (it comes alive as the nine-tailed fox)
-    drawFoxStatue(ctx, Math.min(tx + th * 1.5, W - th * .26), G, th * .36, ky ? ky.glow || 0 : 0, ky ? !!ky.away : false, t); }
+    drawFoxStatue(ctx, FS.x, G, th * .36, ky ? ky.glow || 0 : 0, ky ? !!ky.away : false, t); }
   // torii gate
   ctx.fillStyle = '#e0442f'; ctx.strokeStyle = '#7a1f1a'; ctx.lineWidth = 3;
   const pw = th * .09;
@@ -5010,7 +5014,7 @@ function drawSportsDay(t, dt, G, m, A, front) { // おばけの運動会: track 
     }
     A.sbBox = {x: bx, y: by, w: bw, h: bh};
     // ball-toss basket on a tall pole, red and white balls around its foot
-    const kx = W * .3, ktop = G - m * .5;
+    const kx = Math.max(m * .09, bx - bw / 2 - m * .13), ktop = G - m * .5; // left of the scoreboard, never behind it
     c.fillStyle = '#c8a878'; c.fillRect(kx - 3, ktop, 6, G - ktop);
     c.fillStyle = '#e8d8a0'; c.strokeStyle = '#8a6a3a'; c.lineWidth = 2; c.beginPath(); c.moveTo(kx - m * .06, ktop - m * .05); c.lineTo(kx + m * .06, ktop - m * .05); c.lineTo(kx + m * .04, ktop + m * .02); c.lineTo(kx - m * .04, ktop + m * .02); c.closePath(); c.fill(); c.stroke();
     c.strokeStyle = 'rgba(138,106,58,.6)'; for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(kx + k * m * .022, ktop - m * .05); c.lineTo(kx + k * m * .016, ktop + m * .02); c.stroke(); }
@@ -5033,7 +5037,7 @@ function tapHaka(px, py) {
 function spawnYkArea(kind) {
   const m = Math.min(W, H), side = Math.random() < .5 ? 1 : -1, G = GROUND(), from = d => side > 0 ? -d : W + d;
   const add = o => visitors.push(Object.assign({kind, layer: 'front', dir: side, t: 0, step: 0}, o));
-  if (kind === 'kyubi') { const T = ykScene ? ykScene.torii : {x: W * .2, h: m * .5}; const hx = Math.min(T.x + T.h * 1.5, W - T.h * .26); add({s: m * .36, x: hx, y: G - T.h * .25, dir: -1, ph: 'glow', glow: 0, away: false, home: hx}); }
+  if (kind === 'kyubi') { const T = ykScene ? ykScene.torii : {x: W * .2, h: m * .5}; const hx = foxSpot().x; add({s: m * .36, x: hx, y: G - T.h * .25, dir: -1, ph: 'glow', glow: 0, away: false, home: hx}); }
   else if (kind === 'wanyudo') add({s: m * .17, x: from(m * .2), y: G, rot: 0});
   else if (kind === 'tanuki') add({s: m * .24, x: from(m * .2), y: G});
   else if (kind === 'kingyo') add({s: m * .12, x: from(m * .5), y: H * (.28 + Math.random() * .15)});

@@ -1241,7 +1241,7 @@ function drawFx(dt) {
 // tap on a visitor -> its own little show. Returns true when something was tapped.
 function tapVisitors(px, py) {
   if (WORLD === 'dino') return tapDino(px, py);
-  if (WORLD === 'yokai') return tapYokai(px, py) || tapStall(px, py);
+  if (WORLD === 'yokai') return tapYokai(px, py) || tapStall(px, py) || tapHaka(px, py);
   if (WORLD === 'princess') return tapPrincess(px, py);
   if (tapDeep(px, py)) return true;
   const inBox = (x, y, w, h, pad = 20) => Math.abs(px - x) < w / 2 + pad && Math.abs(py - y) < h / 2 + pad;
@@ -3170,7 +3170,7 @@ function setWorld(w) {
 function showWorld() {
   const dino = WORLD === 'dino';
   document.getElementById('desc').textContent = WORLD === 'yokai' && YKA === -1 ? '縁日の屋台にやってきました。屋台をタッチすると、金魚がはねたり、わたあめがふくらんだりします。入れた絵は3分たつと花火といっしょに空へ帰ります。右にスワイプすると神社にもどります。'
-    : WORLD === 'yokai' && YKA === 1 ? 'おはかで おばけの運動会！ おばけたちのリレーや、ほねほねダンスが見られます。入れた絵は3分たつと朝になって空へ帰ります。左にスワイプすると神社にもどります。'
+    : WORLD === 'yokai' && YKA === 1 ? 'おはかで おばけの運動会！ あか組としろ組にわかれて、おばけたちのリレーや玉入れをしています。得点板や玉入れのかごをタッチすると点が入ります。入れた絵は3分たつと朝になって空へ帰ります。左にスワイプすると神社にもどります。'
     : WORLD === 'princess'
     ? 'スキャンした絵や写真を入れると、白い紙の部分を消してお城の庭で動きだします。タッチするとジャンプします。30秒ごとにお客さん（かぼちゃの馬車、ユニコーン、ようせいなど）が通りかかります。入れた絵は3分たつと12時の鐘が鳴って、おうちへ帰っていきます。'
     : WORLD === 'yokai'
@@ -4822,6 +4822,7 @@ function buildYkArea() {
     graves: Array.from({length: NG}, (_, i) => ({x: (i + .5 + (Math.random() - .5) * .4) * W / NG, h: m * (.15 + Math.random() * .08), w: m * (.09 + Math.random() * .03), round: Math.random() < .6, back: i % 2})),
     flies: Array.from({length: 14}, () => ({x: Math.random() * W, y: G - Math.random() * H * .45, ph: Math.random() * 6})),
     willow: W * (.08 + Math.random() * .08),
+    score: {red: 0, white: 0}, sb: 0, toss: 0, goalX: W * .64, tape: 0,
   };
 }
 function startYkMove(d) { // d = +1 (finger moved right) or -1
@@ -4956,6 +4957,7 @@ function drawHaka(t, dt, dk) {
   for (const row of [0, 1]) { const y0 = H * (.05 + row * .09), sag = H * .04, n = Math.max(8, Math.round(W / 50));
     ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, y0); ctx.quadraticCurveTo(W / 2, y0 + sag * 2, W, y0); ctx.stroke();
     for (let i = 0; i < n; i++) { const u = (i + .5) / n, x = u * W, y = y0 + 4 * sag * u * (1 - u), f = m * .025; ctx.fillStyle = cols[(i + row * 2) % cols.length]; ctx.beginPath(); ctx.moveTo(x - f * .7, y); ctx.lineTo(x + f * .7, y); ctx.lineTo(x, y + f * 1.4 + Math.sin(t * .003 + i) * f * .15); ctx.closePath(); ctx.fill(); } }
+  drawSportsDay(t, dt, G, m, A, false);
   // gravestones and wooden sticks
   const sk = visitors.find(v => v.kind === 'gaikotsu'), rattle = sk && sk.act > 0 ? Math.abs(Math.sin((1 - sk.act / sk.actDur) * 40)) : 0;
   A.graves.forEach((g, gi) => {
@@ -4981,7 +4983,60 @@ function drawHaka(t, dt, dk) {
       ctx.restore();
     }
   });
+  drawSportsDay(t, dt, G, m, A, true);
   for (const f of A.flies) { f.ph += dt; const a = Math.max(0, Math.sin(f.ph * 2)); ctx.fillStyle = `rgba(190,255,120,${a * (1 - dk)})`; ctx.shadowColor = '#c8ff80'; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(f.x + Math.sin(f.ph * .7) * 20, f.y + Math.cos(f.ph * .5) * 12, 2.2, 0, 7); ctx.fill(); ctx.shadowBlur = 0; }
+}
+
+function drawSportsDay(t, dt, G, m, A, front) { // おばけの運動会: track lines, tent, scoreboard, ball-toss basket, finish tape
+  const c = ctx;
+  if (!front) {
+    c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 3; c.setLineDash([18, 12]); // lanes on the ground
+    for (const k of [.3, .62, .9]) { c.beginPath(); c.moveTo(0, G + (H - G) * k); c.lineTo(W, G + (H - G) * k); c.stroke(); } c.setLineDash([]);
+    // the judges' tent
+    const tw = Math.min(W * .26, m * .5), tx = W - tw * .62, ty = G - m * .34;
+    c.fillStyle = '#d8d8e0'; for (const k of [-.45, .45]) c.fillRect(tx + k * tw - 3, ty, 6, G - ty);
+    for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#ffffff' : '#e04050'; c.beginPath(); const a = tx - tw * .55 + i * tw * 1.1 / 8, b2 = a + tw * 1.1 / 8; c.moveTo(a, ty); c.lineTo(b2, ty); c.lineTo(b2 + (i - 3.5) * 2, ty - m * .07); c.lineTo(a + (i - 3.5) * 2, ty - m * .07); c.closePath(); c.fill(); }
+    c.fillStyle = '#c03040'; c.fillRect(tx - tw * .55, ty, tw * 1.1, m * .02);
+    c.fillStyle = '#7a5a3a'; c.fillRect(tx - tw * .35, G - m * .09, tw * .7, m * .025); // judges' table
+    c.save(); c.translate(tx - tw * .15, G - m * .12); drawGhost(c, m * .08, t * .003); c.restore(); c.save(); c.translate(tx + tw * .18, G - m * .12); drawGhost(c, m * .08, t * .003 + 2); c.restore();
+    c.fillStyle = '#fff6e0'; c.font = `700 ${m * .03}px "Kiwi Maru", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = '#c03040'; c.fillText('ほんぶ', tx, ty - m * .035);
+    // scoreboard: tap it (or watch the relay) to add points
+    A.sb = Math.max(0, A.sb - dt);
+    const bw = Math.min(W * .26, m * .46), bx = W * .5, by = H * .28, bh = bw * .42;
+    c.fillStyle = '#5a3a24'; c.fillRect(bx - bw * .35, by + bh * .5, bw * .05, G - by - bh * .5); c.fillRect(bx + bw * .3, by + bh * .5, bw * .05, G - by - bh * .5);
+    c.fillStyle = '#2a3a2a'; c.strokeStyle = '#7a5a3a'; c.lineWidth = 5; c.fillRect(bx - bw / 2, by - bh / 2, bw, bh); c.strokeRect(bx - bw / 2, by - bh / 2, bw, bh);
+    const pop = A.sb > 0 ? 1 + Math.sin(A.sb * 10) * .1 : 1;
+    for (const [k, team, col] of [[-1, 'red', '#ff6a6a'], [1, 'white', '#ffffff']]) {
+      c.fillStyle = col; c.font = `700 ${bh * .22}px "Kiwi Maru", sans-serif`; c.fillText(team === 'red' ? 'あか' : 'しろ', bx + k * bw * .25, by - bh * .25);
+      c.save(); c.translate(bx + k * bw * .25, by + bh * .12); c.scale(pop, pop); c.font = `700 ${bh * .42}px "Kiwi Maru", sans-serif`; c.fillText(String(A.score[team]), 0, 0); c.restore();
+    }
+    A.sbBox = {x: bx, y: by, w: bw, h: bh};
+    // ball-toss basket on a tall pole, red and white balls around its foot
+    const kx = W * .3, ktop = G - m * .5;
+    c.fillStyle = '#c8a878'; c.fillRect(kx - 3, ktop, 6, G - ktop);
+    c.fillStyle = '#e8d8a0'; c.strokeStyle = '#8a6a3a'; c.lineWidth = 2; c.beginPath(); c.moveTo(kx - m * .06, ktop - m * .05); c.lineTo(kx + m * .06, ktop - m * .05); c.lineTo(kx + m * .04, ktop + m * .02); c.lineTo(kx - m * .04, ktop + m * .02); c.closePath(); c.fill(); c.stroke();
+    c.strokeStyle = 'rgba(138,106,58,.6)'; for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(kx + k * m * .022, ktop - m * .05); c.lineTo(kx + k * m * .016, ktop + m * .02); c.stroke(); }
+    for (let i = 0; i < 10; i++) { c.fillStyle = i % 2 ? '#fff' : '#ff5a5a'; c.beginPath(); c.arc(kx + (i - 4.5) * m * .018 + Math.sin(i * 7) * 4, G + 4 - (i % 3) * 2, m * .011, 0, 7); c.fill(); }
+    if (A.toss > 0) { A.toss = Math.max(0, A.toss - dt); for (let i = 0; i < 6; i++) { const u = Math.min(1, (1.2 - A.toss) * 1.4 - i * .08); if (u <= 0 || u >= 1) continue; const sx = kx + (i % 2 ? 1 : -1) * m * (.15 + i * .02), bx2 = sx + (kx - sx) * u, by2 = G - (G - ktop + m * .05) * Math.sin(u * Math.PI * .9) - u * m * .05; c.fillStyle = i % 2 ? '#fff' : '#ff5a5a'; c.beginPath(); c.arc(bx2, by2, m * .012, 0, 7); c.fill(); } }
+    A.basket = {x: kx, y: ktop, r: m * .1};
+  } else {
+    // a finish arch the relay runs through, with a chequered line on the ground
+    const gx = A.goalX, aw = m * .09, top = G - m * .3; A.tape = Math.max(0, A.tape - dt);
+    for (let k = 0; k < 6; k++) for (let r = 0; r < 2; r++) { c.fillStyle = (k + r) % 2 ? '#fff' : '#222'; c.fillRect(gx - m * .012 + r * m * .012, G + 2 + k * (H - G) / 6, m * .012, (H - G) / 6); }
+    c.fillStyle = '#e8e8f0'; c.strokeStyle = '#8a8a9a'; c.lineWidth = 2; for (const k of [-1, 1]) { c.fillRect(gx + k * aw - 4, top, 8, G - top + 4); c.strokeRect(gx + k * aw - 4, top, 8, G - top + 4); }
+    const wob = A.tape > 0 ? Math.sin(A.tape * 20) * 4 : 0;
+    c.fillStyle = '#e04050'; c.fillRect(gx - aw - m * .02, top - m * .045 + wob, aw * 2 + m * .04, m * .05);
+    c.fillStyle = '#fff'; c.font = `700 ${m * .032}px "Kiwi Maru", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('ゴール', gx, top - m * .02 + wob);
+  }
+}
+function addScore(team) { if (!ykArea) return; ykArea.score[team]++; ykArea.sb = .6; SND.twinkle(); }
+function tapHaka(px, py) {
+  if (YKA !== 1 || !ykArea) return false;
+  const A = ykArea, B = A.sbBox, K = A.basket;
+  if (B && Math.abs(px - B.x) < B.w / 2 && Math.abs(py - B.y) < B.h / 2) { addScore(Math.random() < .5 ? 'red' : 'white'); return true; }
+  if (K && Math.hypot(px - K.x, py - K.y) < K.r + 20) { A.toss = 1.2; setTimeout(() => addScore(Math.random() < .5 ? 'red' : 'white'), 800); SND.whee(); return true; }
+  return false;
 }
 
 /* ---------- new yokai guests ---------- */
@@ -5025,9 +5080,10 @@ function drawYkAreaVisitor(v, dt, P) {
       return v.dir > 0 ? v.x - s * 6 < W : v.x + s * 6 > 0;
     }
     case 'race': { // three little ghosts in headbands running a relay; tap -> they put on a burst of speed
-      v.x += v.dir * (act ? 260 : 90) * dt; v.step += dt * (act ? 18 : 10);
+      const px0 = v.x; v.x += v.dir * (act ? 260 : 90) * dt; v.step += dt * (act ? 18 : 10);
+      if (ykArea && YKA === 1 && !THUMB && (px0 - ykArea.goalX) * (v.x - ykArea.goalX) <= 0 && !v.goal) { v.goal = true; ykArea.tape = 2.5; addScore(Math.random() < .5 ? 'red' : 'white'); burst('spark', ykArea.goalX, G - s * .6, 14, s * .08, 200); }
       for (let i = 0; i < 3; i++) { ctx.save(); const bx = v.x - v.dir * i * s * 1.3, by = G - s * .6 - Math.abs(Math.sin(v.step + i)) * s * .15; ctx.translate(bx, by); ctx.scale(v.dir, 1); ctx.rotate(.15); drawGhost(ctx, s, v.step + i);
-        ctx.fillStyle = ['#ff5a5a', '#ffffff', '#5ab0ff'][i]; ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.rect(-s * .4, -s * .32, s * .8, s * .08); ctx.fill(); ctx.stroke(); // headband
+        ctx.fillStyle = ['#ff5a5a', '#ffffff', '#ff5a5a'][i]; ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.rect(-s * .4, -s * .32, s * .8, s * .08); ctx.fill(); ctx.stroke(); // headband
         ctx.beginPath(); ctx.moveTo(-s * .38, -s * .28); ctx.lineTo(-s * .62, -s * .36 + Math.sin(v.step * 2) * s * .05); ctx.lineTo(-s * .6, -s * .24); ctx.fill(); ctx.restore();
         if (act && Math.random() < .3) fx.push({k: 'spark', x: bx - v.dir * s * .4, y: by + s * .2, vx: -v.dir * 80, vy: 0, a: .7, s: s * .06}); }
       const tail = v.x - v.dir * 2.6 * s; return v.dir > 0 ? tail - s < W : tail + s > 0;

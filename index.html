@@ -583,7 +583,10 @@ const SND = (() => {
         case 'tanuki':   tone('sine', [200, 100], 0, .15, .35); noise(.05, .3, .4, 1500, 500, .8); [79, 84].forEach((m, i) => tone('triangle', hz(m), .3 + i * .12, .3, .1)); break;
         case 'kingyo':   [84, 88, 91, 96].forEach((m, i) => tone('sine', hz(m), i * .1, .5, .08)); break;
         case 'race':     for (let i = 0; i < 6; i++) tone('square', [600 + i * 60, 900 + i * 60], i * .08, .07, .05); break;
-        case 'noppera':  tone('sine', [400, 800], 0, .3, .12); [84, 88].forEach((m, i) => tone('sine', hz(m), .35 + i * .12, .4, .09)); break;
+        case 'zashiki':  [84, 88, 91, 96].forEach((m, i) => tone('sine', hz(m), i * .08, .4, .1)); break;
+        case 'nurari':   tone('sine', [300, 200], 0, .3, .12); tone('sine', [320, 220], .3, .3, .1); break;
+        case 'nopperao': tone('sine', [500, 300], 0, .25, .12); break;
+        case 'ohaguro':  tone('sine', [400, 800], 0, .3, .12); [84, 88].forEach((m, i) => tone('sine', hz(m), .35 + i * .12, .4, .09)); break;
         case 'gaikotsu': for (let i = 0; i < 8; i++) noise(i * .07, .04, .45, 3200, 2600, 6); [72, 76, 79].forEach((m, i) => tone('triangle', hz(m), .7 + i * .08, .3, .1)); break;
         case 'ykkappa':  noise(0, .3, .5, 2500, 600, .8); tone('square', [500, 1100], .1, .12, .1); break;
         case 'daidara':  for (let i = 0; i < 3; i++) tone('sine', [70, 50], i * .4, .4, .4); tone('triangle', [200, 300], 1.3, .8, .12); break;
@@ -2495,8 +2498,9 @@ const GUESTS = {
     ['kitsune', 'きつね', 'きつねびを ともして ぎょうれつ'], ['neko', 'ばけねこ', 'しっぽが ふたつに わかれた ねこ'], ['hitotsume', 'ひとつめこぞう', 'おどかすのが だいすき'], ['tengu', 'てんぐ', 'うちわで おおかぜを おこすよ'],
     ['oni', 'おに', 'たいこを ドンドン たたくよ'], ['nurikabe', 'ぬりかべ', 'みちを とおせんぼ する かべ'], ['yukionna', 'ゆきおんな', 'つめたい いきで あたりを ゆきげしき'],
     ['tanuki', 'ばけだぬき', 'えんにちに あらわれる。はっぱで ドロン！'], ['kingyo', 'きんぎょちょうちん', 'えんにちの そらを およぐ ちょうちん'],
-    ['race', 'おばけリレー', 'おはかの うんどうかい。いちばんは だれかな？'], ['noppera', 'のっぺらぼう', 'かおが ないけど、じつは えがおが すてき'], ['gaikotsu', 'ガイコツ', 'ほねほね ダンスが とくい'], ['onibi', 'おにび', 'あおい ひの たまが くるくる まわる'],
-    ['ykkappa', 'カッパ', 'きんぎょすくいの みずから こんにちは。あたまの おさらが じまん'], ['daidara', 'だいだらぼっち', 'やまより おおきな やさしい きょじん']],
+    ['race', 'おばけリレー', 'おはかの うんどうかい。いちばんは だれかな？'], ['ohaguro', 'おはぐろべったり', 'くちだけの かお。にっこり すると くろい は'], ['gaikotsu', 'ガイコツ', 'ほねほね ダンスが とくい'], ['onibi', 'おにび', 'あおい ひの たまが くるくる まわる'],
+    ['ykkappa', 'カッパ', 'きんぎょすくいの みずから こんにちは。あたまの おさらが じまん'], ['daidara', 'だいだらぼっち', 'やまより おおきな やさしい きょじん'],
+    ['zashiki', 'ざしきわらし', 'えんにちで わたあめを かったよ'], ['nurari', 'ぬらりひょん', 'しゃてきの めいじん？'], ['nopperao', 'のっぺらぼう', 'おめんやさんで きつねの おめんを かったよ']],
   princess: [['carriage', 'かぼちゃの ばしゃ', 'まほうで かぼちゃが ばしゃに'], ['unicorn', 'ユニコーン', 'にじを よぶ ふしぎな うま'], ['prince', 'おうじさま', 'ダンスが だいすき'], ['prince2', 'バラの おうじさま', 'あかい バラを もってきたよ'],
     ['starprince', 'ほしの おうじさま', 'ちいさな ほしと いっしょに たびを しているよ'], ['hakuba', 'はくばの おうじさま', 'しろい うまで むかえに くるよ'], ['yusha', 'ゆうしゃ', 'つよくて やさしい けんの つかいて'], ['aladdin', 'アラジン', 'まほうの じゅうたんで そらの たび'],
     ['mice', 'ねずみの がくたい', 'パンパカパーン！'], ['majo', 'まほうつかい', 'みんなに おうかんを くれるよ'], ['fairy', 'ようせい', 'キラキラの まほうを かけるよ'], ['angel', 'てんし', 'しあわせを はこんで くるよ'],
@@ -3157,12 +3161,12 @@ function setWorld(w) {
 }
 function showWorld() {
   const dino = WORLD === 'dino';
-  document.getElementById('desc').textContent = WORLD === 'yokai' && YKA === -1 ? '縁日の屋台にやってきました。屋台をタッチすると、金魚がはねたり、わたあめがふくらんだりします。入れた絵は3分たつと花火といっしょに空へ帰ります。右にスワイプすると神社にもどります。'
-    : WORLD === 'yokai' && YKA === 1 ? 'おはかで おばけの運動会！ おばけたちのリレーや、ほねほねダンスが見られます。入れた絵は3分たつと朝になって空へ帰ります。左にスワイプすると神社にもどります。'
+  document.getElementById('desc').textContent = WORLD === 'yokai' && YKA === -1 ? '縁日の屋台にやってきました。屋台をタッチすると、金魚がはねたり、わたあめがふくらんだりします。入れた絵は3分たつと花火といっしょに空へ帰ります。左にスワイプすると神社にもどります。'
+    : WORLD === 'yokai' && YKA === 1 ? 'おはかで おばけの運動会！ おばけたちのリレーや、ほねほねダンスが見られます。入れた絵は3分たつと朝になって空へ帰ります。右にスワイプすると神社にもどります。'
     : WORLD === 'princess'
     ? 'スキャンした絵や写真を入れると、白い紙の部分を消してお城の庭で動きだします。タッチするとジャンプします。30秒ごとにお客さん（かぼちゃの馬車、ユニコーン、ようせいなど）が通りかかります。入れた絵は3分たつと12時の鐘が鳴って、おうちへ帰っていきます。'
     : WORLD === 'yokai'
-    ? 'スキャンした絵や写真を入れると、白い紙の部分を消して妖怪のおまつりで動きだします。タッチするとジャンプします。30秒ごとにお客さん（からかさおばけ、ちょうちんおばけ、きつねなど）が通りかかります。入れた絵は3分たつと朝になって、空へ帰っていきます。左右にスワイプすると、縁日の屋台やおはかに行けます。'
+    ? 'スキャンした絵や写真を入れると、白い紙の部分を消して妖怪のおまつりで動きだします。タッチするとジャンプします。30秒ごとにお客さん（からかさおばけ、ちょうちんおばけ、きつねなど）が通りかかります。入れた絵は3分たつと朝になって、空へ帰っていきます。右にスワイプすると縁日の屋台、左にスワイプするとおはかに行けます。'
     : dino
     ? 'スキャンした絵や写真を入れると、白い紙の部分を消して恐竜の世界で動きだします。タッチするとジャンプします。30秒ごとにお客さん（ティラノサウルス、プテラノドン、トリケラトプスなど）が通りかかります。入れた絵は3分たつと火山が噴火して飛んでいきます。'
     : DEEP ? '深海にやってきました。ひかる生きものや、ふしぎな生きものが通りかかります。タッチするとジャンプします。画面を下にスワイプすると、もとの海にもどります。入れた絵は3分たつとサメが食べに来ます。'
@@ -4794,12 +4798,12 @@ function drawHotaruika(x, s, ph, flash = 0) { // firefly squid, a tiny one; cent
 /* ====================== YOKAI AREAS: swipe sideways ======================
    finger right ➡ the graveyard (おばけの運動会), finger left ⬅ the fair stalls (縁日). -1 = fair, 0 = shrine, 1 = graveyard */
 let YKA = 0, ykT = null, ykArea = null;
-const YK_NEW = ['tanuki', 'kingyo', 'race', 'noppera', 'gaikotsu', 'onibi', 'ykkappa', 'daidara'];
+const YK_NEW = ['tanuki', 'kingyo', 'race', 'ohaguro', 'gaikotsu', 'onibi', 'ykkappa', 'daidara', 'zashiki', 'nurari', 'nopperao'];
 let THUMB = false; // true while the guest book is drawing a picture of a guest
 const YK_KINDS = {
   '0': ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'],
-  '-1': ['tanuki', 'kingyo', 'ykkappa', 'kitsune', 'neko', 'chochin', 'karakasa'],
-  '1': ['race', 'noppera', 'gaikotsu', 'onibi', 'daidara', 'momen', 'hitotsume'],
+  '-1': ['tanuki', 'kingyo', 'ykkappa', 'zashiki', 'nurari', 'nopperao', 'kitsune', 'neko', 'chochin'],
+  '1': ['race', 'ohaguro', 'gaikotsu', 'onibi', 'daidara', 'momen', 'hitotsume'],
 };
 function buildYkArea() {
   const m = Math.min(W, H), G = GROUND();
@@ -4813,7 +4817,7 @@ function buildYkArea() {
   };
 }
 function startYkMove(d) { // d = +1 (finger moved right) or -1
-  const to = Math.max(-1, Math.min(1, YKA + d));
+  const to = Math.max(-1, Math.min(1, YKA - d));
   if (ykT || to === YKA || WORLD !== 'yokai') return;
   ykT = {t: 0, to, d, swapped: false}; SND.whee();
 }
@@ -4831,8 +4835,8 @@ function drawYkHint() {
   if (WORLD !== 'yokai' || ykT) return;
   const sz = Math.max(12, Math.min(W, H) * .028), y = H - sz * 1.3;
   ctx.save(); ctx.font = `500 ${sz}px "Kiwi Maru", "Hiragino Maru Gothic ProN", sans-serif`; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,240,220,.55)';
-  const L = {'-1': '', '0': '⬅ えんにち', '1': '⬅ じんじゃ'}[YKA], R = {'-1': 'じんじゃ ➡', '0': 'おはか ➡', '1': ''}[YKA];
-  ctx.textAlign = 'left'; if (L) ctx.fillText(L, sz, y); ctx.textAlign = 'right'; if (R) ctx.fillText(R, W - sz, y);
+  const L = {'-1': '⬅ じんじゃ', '0': '⬅ おはか', '1': ''}[YKA], R = {'-1': '', '0': 'えんにち ➡', '1': 'じんじゃ ➡'}[YKA];
+  ctx.textAlign = 'left'; if (L) ctx.fillText(L, Math.max(sz, 96), y); // clear of the パネル button ctx.textAlign = 'right'; if (R) ctx.fillText(R, W - sz, y);
   ctx.restore();
 }
 
@@ -4957,11 +4961,16 @@ function spawnYkArea(kind) {
   if (kind === 'tanuki') add({s: m * .24, x: from(m * .2), y: G});
   else if (kind === 'kingyo') add({s: m * .12, x: from(m * .5), y: H * (.28 + Math.random() * .15)});
   else if (kind === 'race') add({s: m * .17, x: from(m * .2), y: G});
-  else if (kind === 'noppera') add({s: m * .34, x: from(m * .15), y: G});
+  else if (kind === 'ohaguro') add({s: m * .34, x: from(m * .15), y: G});
+  else if (kind === 'zashiki' || kind === 'nurari' || kind === 'nopperao') { // shoppers: walk to their stall, buy something, walk on
+    const type = {zashiki: 'wataame', nurari: 'shateki', nopperao: 'omen'}[kind], S = ykArea && ykArea.stalls.find(st => st.type === type);
+    const dir = kind === 'nopperao' ? 1 : side; // the faceless man always comes from the left
+    add({s: m * (kind === 'zashiki' ? .24 : .32), dir, x: dir > 0 ? -m * .15 : W + m * .15, y: G, stop: S ? S.x : null, S, ph: 'walk', wait: 0, bought: false});
+  }
   else if (kind === 'gaikotsu') add({s: m * .38, x: from(m * .15), y: G});
   else if (kind === 'ykkappa') { // pops up out of the goldfish tub
     const S = ykArea && ykArea.stalls.find(st => st.type === 'kingyo'), sw = S ? S.w : m * .4;
-    add({s: sw * .32, x: S ? S.x : W * .5, y: S ? G - S.h * .32 : G * .8, dir: 1, up: 0, life: 9});
+    add({s: sw * .3, tw: sw * .42, x: S ? S.x : W * .5, y: S ? G - S.h * .32 : G * .8, dir: 1, up: 0, life: 9});
   }
   else if (kind === 'daidara') add({s: m * .5, x: W * (.25 + Math.random() * .5), y: G, dir: 1, up: 0, life: 10, look: 0});
   else if (kind === 'onibi') add({s: m * .05, x: from(m * .2), y: H * (.35 + Math.random() * .2)});
@@ -4989,10 +4998,23 @@ function drawYkAreaVisitor(v, dt, P) {
         if (act && Math.random() < .3) fx.push({k: 'spark', x: bx - v.dir * s * .4, y: by + s * .2, vx: -v.dir * 80, vy: 0, a: .7, s: s * .06}); }
       const tail = v.x - v.dir * 2.6 * s; return v.dir > 0 ? tail - s < W : tail + s > 0;
     }
-    case 'noppera': { // a faceless lady; tap -> a big friendly face appears
+    case 'ohaguro': { // ohaguro-bettari: a face with nothing but a mouth; tap -> a huge grin of blackened teeth
       if (!act) { v.x += v.dir * 35 * dt; v.step += dt * 5; }
-      ctx.translate(v.x, G); ctx.scale(v.dir, 1); drawNoppera(ctx, s, v.step, act ? Math.sin(Math.min(1, P * 3) * Math.PI / 2) * (P < .8 ? 1 : (1 - P) * 5) : 0);
+      ctx.translate(v.x, G); ctx.scale(v.dir, 1); drawNoppera(ctx, s, v.step, act ? Math.sin(Math.min(1, P * 3) * Math.PI / 2) * (P < .8 ? 1 : (1 - P) * 5) : 0, 'ohaguro');
       return !gone(s * .4);
+    }
+    case 'zashiki': case 'nurari': case 'nopperao': {
+      if (v.ph === 'walk') { v.x += v.dir * 85 * dt; v.step += dt * 8;
+        if (v.stop !== null && Math.abs(v.x - v.stop) < 4 && !v.bought) { v.ph = 'buy'; v.wait = 2.6; v.x = v.stop;
+          if (v.S) { const S = v.S; S.dur = S.a = {wataame: 2, shateki: 2.2, omen: 1.6}[S.type]; if (S.type === 'shateki') { S.fall = Math.floor(Math.random() * 6); burst('spark', S.x, G - S.h * .6, 10, S.w * .025, 180); SND.bonk(); } else SND.visitor(S.type === 'wataame' ? 'fairy' : 'kitsune'); } } }
+      else { v.wait -= dt; if (v.wait < 1.3) v.bought = true; if (v.wait <= 0) v.ph = 'walk'; }
+      ctx.translate(v.x, G); ctx.scale(v.dir, 1);
+      const bob = v.ph === 'walk' ? Math.abs(Math.sin(v.step)) * s * .02 : 0; ctx.translate(0, -bob);
+      if (v.kind === 'zashiki') drawZashiki(ctx, s, v.step, v.bought, act ? Math.sin(P * Math.PI) : 0);
+      else if (v.kind === 'nurari') drawNurari(ctx, s, v.step, v.ph === 'buy' ? 1 : 0, act ? Math.sin(P * Math.PI) : 0);
+      else drawNoppera(ctx, s, v.step, 0, 'man', v.bought && !(act && P > .1 && P < .9) ? 1 : 0);
+      if (v.kind === 'zashiki' && act && Math.random() < .2) fx.push({k: 'heart', x: v.x, y: G - s * .9, vx: (Math.random() - .5) * 40, vy: -40, a: 1, s: s * .06});
+      return !gone(s * .5);
     }
     case 'gaikotsu': { // a dancing skeleton; tap -> its bones fly apart and click back together
       if (!act) { v.x += v.dir * 40 * dt; } v.step += dt * 6;
@@ -5001,12 +5023,16 @@ function drawYkAreaVisitor(v, dt, P) {
       return !gone(s * .4);
     }
     case 'ykkappa': { // a kappa peeking out of the goldfish tub; tap -> splash! it ducks and pops right back up
-      v.life -= dt; const goal = v.life > 1.2 ? (act && P < .5 ? 0 : 1) : 0;
+      v.life -= dt; const goal = v.life > 1.2 ? 1 : 0;
       v.up += (goal - v.up) * Math.min(1, dt * (goal ? 3 : 7));
       if (v.life <= 0 && v.up < .02) return false;
-      ctx.save(); ctx.beginPath(); ctx.rect(v.x - s * 2, v.y - s * 3, s * 4, s * 3); ctx.clip(); // only above the water line
-      ctx.translate(v.x, v.y + (1 - v.up) * s * 1.1); drawKappaHead(ctx, s, Math.sin(v.t * 1.5), v.up);
-      ctx.restore(); return true;
+      ctx.save(); ctx.beginPath(); ctx.rect(v.x - s * 3, v.y - s * 4, s * 6, s * 4 + s * .25); ctx.clip();
+      ctx.translate(v.x, v.y - s * .3 * v.up + (1 - v.up) * s * 1.6 - (act ? Math.sin(P * Math.PI) * s * .3 : 0)); drawKappaHead(ctx, s, Math.sin(v.t * 1.5), v.up, true);
+      ctx.restore();
+      const tw = v.tw || s * 1.3; ctx.fillStyle = 'rgba(90,176,232,.92)'; ctx.strokeStyle = '#2a6aa8'; ctx.lineWidth = 2; // the water in front of its body
+      ctx.beginPath(); ctx.ellipse(v.x, v.y, tw, s * .3, 0, 0, Math.PI); ctx.lineTo(v.x - tw, v.y); ctx.fill();
+      ctx.strokeStyle = 'rgba(220,245,255,.8)'; ctx.beginPath(); ctx.ellipse(v.x, v.y, s * .55 * (1 + Math.sin(v.t * 3) * .1), s * .07, 0, 0, Math.PI); ctx.stroke();
+      return true;
     }
     case 'daidara': { // the giant peeking over the far hills (drawn behind the graves by drawHaka); tap -> a big smile and a wave
       v.life -= dt; v.look = Math.sin(v.t * .8);
@@ -5034,7 +5060,8 @@ function tapYkArea(px, py) {
       case 'tanuki': if (inBox(v.x, G - s * .45, s * .8, s * .9) && start(v, 1.8)) { fx.push({k: 'puff', x: v.x, y: G - s * .45, vx: 0, vy: 0, a: 1, s: s * .9}); return true; } break;
       case 'kingyo': for (let k = 0; k < 3; k++) if (inBox(v.x - v.dir * k * s * 2.2, v.y + (k % 2) * s * .6, s * 1.6, s * 1.6) && start(v, 2)) return true; break;
       case 'race': if (inBox(v.x - v.dir * s * 1.3, G - s * .6, s * 3.6, s, 15) && start(v, 1.6)) return true; break;
-      case 'noppera': if (inBox(v.x, G - s * .55, s * .5, s * 1.1) && start(v, 2.2)) return true; break;
+      case 'ohaguro': if (inBox(v.x, G - s * .55, s * .5, s * 1.1) && start(v, 2.2)) return true; break;
+      case 'zashiki': case 'nurari': case 'nopperao': if (inBox(v.x, G - s * .5, s * .5, s, 25) && start(v, 1.8)) return true; break;
       case 'gaikotsu': if (inBox(v.x, G - s * .5, s * .6, s) && start(v, 1.6)) return true; break;
       case 'onibi': if (inBox(v.x, v.y, s * 6, s * 4) && start(v, 1.8)) return true; break;
       case 'ykkappa': if (v.up > .5 && inBox(v.x, v.y - s * .5, s * 1.3, s * 1.1) && start(v, 1.6)) { burst('drop', v.x, v.y, 18, s * .06, 220); return true; } break;
@@ -5043,10 +5070,12 @@ function tapYkArea(px, py) {
   }
   return false;
 }
-function drawKappaHead(x, s, look = 0, up = 1) { // a kappa's head and hands poking out of the water (water line at y = 0)
+function drawKappaHead(x, s, look = 0, up = 1, body = false) { // a kappa's head and hands poking out of the water (water line at y = 0)
   const lw = Math.max(2, s * .04); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
   x.fillStyle = '#6ac85a'; x.strokeStyle = '#2f6a2a';
-  for (const k of [-1, 1]) { x.beginPath(); x.ellipse(k * s * .7, -s * .12, s * .16, s * .1, k * .3, 0, 7); x.fill(); x.stroke(); } // hands on the rim
+  if (body) { x.beginPath(); x.ellipse(0, s * .15, s * .45, s * .4, 0, 0, 7); x.fill(); x.stroke(); x.fillStyle = '#c8e8a0'; x.beginPath(); x.ellipse(0, s * .2, s * .28, s * .28, 0, 0, 7); x.fill(); x.fillStyle = '#6ac85a'; // shoulders and belly
+    for (const k of [-1, 1]) { x.strokeStyle = '#2f6a2a'; x.beginPath(); x.moveTo(k * s * .35, 0); x.quadraticCurveTo(k * s * .75, -s * .2, k * s * .7, -s * .55 + Math.sin(Date.now() * .006 + k) * s * .06 * up); x.lineWidth = s * .12; x.strokeStyle = '#2f6a2a'; x.stroke(); x.lineWidth = s * .08; x.strokeStyle = '#6ac85a'; x.stroke(); x.lineWidth = lw; x.beginPath(); x.arc(k * s * .7, -s * .6 + Math.sin(Date.now() * .006 + k) * s * .06 * up, s * .07, 0, 7); x.fill(); x.strokeStyle = '#2f6a2a'; x.stroke(); } } // waving
+  else for (const k of [-1, 1]) { x.beginPath(); x.ellipse(k * s * .7, -s * .12, s * .16, s * .1, k * .3, 0, 7); x.fill(); x.stroke(); } // hands on the rim
   x.beginPath(); x.ellipse(0, -s * .55, s * .5, s * .48, 0, 0, 7); x.fill(); x.stroke();
   x.fillStyle = '#3a5a9a'; x.beginPath(); for (let k = 0; k <= 8; k++) { const a = Math.PI + k * Math.PI / 8; x.lineTo(Math.cos(a) * s * .52, -s * .7 + Math.sin(a) * s * .38 + (k % 2) * s * .1); } x.closePath(); x.fill(); // hair fringe
   x.fillStyle = '#e8f4ff'; x.strokeStyle = '#8aa0c0'; x.beginPath(); x.ellipse(0, -s * 1.02, s * .28, s * .1, 0, 0, 7); x.fill(); x.stroke(); // the plate
@@ -5054,7 +5083,7 @@ function drawKappaHead(x, s, look = 0, up = 1) { // a kappa's head and hands pok
   x.fillStyle = '#222'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .2 + look * s * .1, -s * .58, s * .06, 0, 7); x.fill(); }
   x.fillStyle = '#ffd24a'; x.strokeStyle = '#a07a10'; x.beginPath(); x.moveTo(-s * .2, -s * .35); x.quadraticCurveTo(0, -s * .48, s * .2, -s * .35); x.quadraticCurveTo(0, -s * .22, -s * .2, -s * .35); x.fill(); x.stroke(); // beak
   x.fillStyle = 'rgba(255,130,150,.5)'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .36, -s * .42, s * .06, 0, 7); x.fill(); }
-  x.strokeStyle = 'rgba(200,240,255,.8)'; x.lineWidth = lw * .8; x.beginPath(); x.ellipse(0, 0, s * .6 * up, s * .08, 0, 0, 7); x.stroke(); // ripple
+  if (!body) { x.strokeStyle = 'rgba(200,240,255,.8)'; x.lineWidth = lw * .8; x.beginPath(); x.ellipse(0, 0, s * .6 * up, s * .08, 0, 0, 7); x.stroke(); } // ripple
 }
 function drawDaidara(v, smile = 0) { // daidarabotchi: a gentle giant peeking over the hills; v.y is the ground line
   const s = v.s, rise = v.up, cx = v.x, base = v.y - H * .06, hy = base - s * .55 * rise;
@@ -5092,15 +5121,51 @@ function drawKingyoLantern(x, s, t, glow = 0) { // a goldfish-shaped paper lante
   x.fillStyle = '#fff'; x.beginPath(); x.arc(s * .55, -s * .15, s * .14, 0, 7); x.fill(); x.fillStyle = '#222'; x.beginPath(); x.arc(s * .58, -s * .15, s * .07, 0, 7); x.fill();
   x.restore();
 }
-function drawNoppera(x, s, step, face = 0) { // feet at (0, 0)
+function drawNoppera(x, s, step, face = 0, kind = 'ohaguro', mask = 0) { // feet at (0, 0); kind: 'ohaguro' (lady) or 'man'
   const lw = Math.max(2, s * .016), b = Math.abs(Math.sin(step)) * s * .015; x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw; x.translate(0, -b);
-  x.fillStyle = '#7a9ad8'; x.strokeStyle = '#2a4a8a'; x.beginPath(); x.moveTo(-s * .12, -s * .62); x.lineTo(s * .12, -s * .62); x.lineTo(s * .2, 0); x.lineTo(-s * .2, 0); x.closePath(); x.fill(); x.stroke(); // kimono
+  const man = kind === 'man';
+  x.fillStyle = man ? '#4a5a6a' : '#7a9ad8'; x.strokeStyle = man ? '#1e2833' : '#2a4a8a'; x.beginPath(); x.moveTo(-s * .12, -s * .62); x.lineTo(s * .12, -s * .62); x.lineTo(s * .2, 0); x.lineTo(-s * .2, 0); x.closePath(); x.fill(); x.stroke(); // kimono
   x.strokeStyle = 'rgba(255,255,255,.6)'; for (const [a, b2] of [[-.08, -.4], [.06, -.25], [-.1, -.12], [.1, -.5]]) { x.beginPath(); x.arc(a * s, b2 * s, s * .02, 0, 7); x.stroke(); }
-  x.fillStyle = '#e8a040'; x.fillRect(-s * .13, -s * .45, s * .26, s * .05); // obi
+  x.fillStyle = man ? '#2a2a2a' : '#e8a040'; x.fillRect(-s * .13, -s * .45, s * .26, s * .05); // obi
   x.fillStyle = '#fbe8d8'; x.strokeStyle = '#c8a088'; x.beginPath(); x.ellipse(0, -s * .76, s * .11, s * .13, 0, 0, 7); x.fill(); x.stroke(); // the (blank) face
-  x.fillStyle = '#222'; x.beginPath(); x.arc(0, -s * .92, s * .07, 0, 7); x.fill(); x.beginPath(); x.moveTo(-s * .11, -s * .8); x.quadraticCurveTo(-s * .12, -s * .9, 0, -s * .9); x.quadraticCurveTo(s * .12, -s * .9, s * .11, -s * .8); x.quadraticCurveTo(s * .05, -s * .86, -s * .11, -s * .8); x.fill(); // hair
-  if (face > 0) { x.globalAlpha = face; x.fillStyle = '#222'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .045, -s * .77, s * .015, 0, 7); x.fill(); }
-    x.fillStyle = '#e06a7a'; x.beginPath(); x.arc(0, -s * .71, s * .035, 0, Math.PI); x.fill(); x.fillStyle = 'rgba(255,130,150,.5)'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .07, -s * .73, s * .02, 0, 7); x.fill(); } x.globalAlpha = 1; }
+  x.fillStyle = '#222'; x.beginPath(); if (!man) x.arc(0, -s * .92, s * .07, 0, 7); x.fill(); x.beginPath(); x.moveTo(-s * .11, -s * .8); x.quadraticCurveTo(-s * .12, -s * .9, 0, -s * .9); x.quadraticCurveTo(s * .12, -s * .9, s * .11, -s * .8); x.quadraticCurveTo(s * .05, -s * .86, -s * .11, -s * .8); x.fill(); // hair
+  if (man && mask) { // a fox mask bought at the stall
+    x.save(); x.translate(0, -s * .76); x.fillStyle = '#fff8f0'; x.strokeStyle = '#888'; x.lineWidth = lw * .7;
+    for (const e of [-1, 1]) { x.beginPath(); x.moveTo(e * s * .05, -s * .09); x.lineTo(e * s * .1, -s * .17); x.lineTo(e * s * .11, -s * .05); x.fill(); x.stroke(); }
+    x.beginPath(); x.ellipse(0, 0, s * .115, s * .125, 0, 0, 7); x.fill(); x.stroke();
+    x.strokeStyle = '#e0442f'; x.lineWidth = s * .015; for (const e of [-1, 1]) { x.beginPath(); x.moveTo(e * s * .02, -s * .01); x.lineTo(e * s * .07, -s * .03); x.stroke(); }
+    x.fillStyle = '#e0442f'; x.beginPath(); x.arc(0, s * .05, s * .012, 0, 7); x.fill(); x.restore();
+  }
+  if (face > 0 && kind === 'ohaguro') { x.globalAlpha = face; x.fillStyle = '#c03040'; x.beginPath(); x.ellipse(0, -s * .72, s * .075, s * .04, 0, 0, 7); x.fill();
+    x.fillStyle = '#111'; x.beginPath(); x.ellipse(0, -s * .72, s * .06, s * .025, 0, 0, 7); x.fill(); x.strokeStyle = '#555'; x.lineWidth = 1; for (let k = -2; k <= 2; k++) { x.beginPath(); x.moveTo(k * s * .02, -s * .745); x.lineTo(k * s * .02, -s * .695); x.stroke(); } x.globalAlpha = 1; }
+  else if (kind === 'ohaguro') { x.strokeStyle = '#c03040'; x.lineWidth = Math.max(1.5, s * .01); x.beginPath(); x.arc(0, -s * .73, s * .03, .3, Math.PI - .3); x.stroke(); }
+}
+function drawZashiki(x, s, step, candy = false, hop = 0) { // zashiki-warashi in a red kimono with bobbed hair; feet at (0, 0)
+  const lw = Math.max(2, s * .02); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw; x.translate(0, -hop * s * .25);
+  x.fillStyle = '#e04a5a'; x.strokeStyle = '#8a1f2a'; x.beginPath(); x.moveTo(-s * .12, -s * .55); x.lineTo(s * .12, -s * .55); x.lineTo(s * .2, 0); x.lineTo(-s * .2, 0); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#fff'; for (const [a, b] of [[-.08, -.35], [.07, -.2], [-.1, -.1], [.1, -.45]]) { x.beginPath(); x.arc(a * s, b * s, s * .022, 0, 7); x.fill(); }
+  x.fillStyle = '#ffd84a'; x.fillRect(-s * .13, -s * .42, s * .26, s * .06); // obi
+  x.fillStyle = '#fbe8d8'; x.strokeStyle = '#c8a088'; x.beginPath(); x.arc(0, -s * .7, s * .14, 0, 7); x.fill(); x.stroke();
+  x.fillStyle = '#1a1a22'; x.beginPath(); x.arc(0, -s * .72, s * .16, Math.PI * .95, Math.PI * 2.05); x.lineTo(s * .16, -s * .6); x.lineTo(s * .1, -s * .6); x.lineTo(s * .1, -s * .72); x.lineTo(-s * .1, -s * .72); x.lineTo(-s * .1, -s * .6); x.lineTo(-s * .16, -s * .6); x.closePath(); x.fill(); // okappa
+  x.fillStyle = '#222'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .05, -s * .67, s * .016, 0, 7); x.fill(); }
+  x.fillStyle = 'rgba(255,120,140,.5)'; for (const k of [-1, 1]) { x.beginPath(); x.arc(k * s * .09, -s * .63, s * .022, 0, 7); x.fill(); }
+  x.strokeStyle = '#c03040'; x.lineWidth = Math.max(1.5, s * .012); x.beginPath(); x.arc(0, -s * .63, s * .03, .3, Math.PI - .3); x.stroke();
+  x.fillStyle = '#e04a5a'; x.strokeStyle = '#8a1f2a'; x.lineWidth = lw; x.beginPath(); x.ellipse(s * .14, -s * .42, s * .05, s * .1, -.6, 0, 7); x.fill(); x.stroke(); // arm
+  if (candy) { x.strokeStyle = '#d8c8a0'; x.lineWidth = s * .015; x.beginPath(); x.moveTo(s * .18, -s * .38); x.lineTo(s * .22, -s * .62); x.stroke();
+    x.fillStyle = '#ffc8e4'; for (const [a, b, r] of [[.22, -.72, .11], [.15, -.67, .07], [.29, -.67, .07], [.22, -.82, .07]]) { x.beginPath(); x.arc(a * s, b * s, r * s, 0, 7); x.fill(); } }
+}
+function drawNurari(x, s, step, aim = 0, laugh = 0) { // nurarihyon: an old gentleman with a long bald head and a haori; feet at (0, 0)
+  const lw = Math.max(2, s * .016); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
+  x.fillStyle = '#5a4a7a'; x.strokeStyle = '#2a1e40'; x.beginPath(); x.moveTo(-s * .13, -s * .58); x.lineTo(s * .13, -s * .58); x.lineTo(s * .19, 0); x.lineTo(-s * .19, 0); x.closePath(); x.fill(); x.stroke(); // kimono
+  x.fillStyle = '#c9a24a'; x.strokeStyle = '#6a5020'; x.beginPath(); x.moveTo(-s * .18, -s * .6); x.lineTo(-s * .05, -s * .6); x.lineTo(-s * .08, -s * .1); x.lineTo(-s * .22, -s * .08); x.closePath(); x.fill(); x.stroke(); // haori
+  x.fillStyle = '#f4e0c8'; x.strokeStyle = '#a88a6a'; x.beginPath(); x.ellipse(0, -s * .72, s * .1, s * .09, 0, 0, 7); x.fill(); x.stroke(); // face
+  x.beginPath(); x.ellipse(-s * .03, -s * .9, s * .12, s * .16, -.2, 0, 7); x.fill(); x.stroke(); // the long gourd-like head
+  x.fillStyle = '#fff'; x.beginPath(); x.ellipse(-s * .08, -s * .66, s * .03, s * .05, 0, 0, 7); x.fill(); // sideburn
+  x.fillStyle = '#222'; x.strokeStyle = '#222'; x.lineWidth = Math.max(1.5, s * .01); for (const k of [0, 1]) { x.beginPath(); if (laugh > .3) { x.arc(s * (.0 + k * .06), -s * .74, s * .015, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); } else { x.arc(s * (.0 + k * .06), -s * .74, s * .012, 0, 7); x.fill(); } }
+  x.beginPath(); x.arc(s * .04, -s * .68, s * (.02 + laugh * .02), .2, Math.PI - .2); x.stroke();
+  x.lineWidth = lw; x.fillStyle = '#5a4a7a'; x.strokeStyle = '#2a1e40';
+  if (aim) { x.beginPath(); x.ellipse(s * .14, -s * .5, s * .1, s * .04, -.1, 0, 7); x.fill(); x.stroke(); x.fillStyle = '#5a3a20'; x.fillRect(s * .1, -s * .55, s * .26, s * .03); } // aiming the cork gun
+  else { x.beginPath(); x.ellipse(s * .1, -s * .42, s * .05, s * .1, -.3, 0, 7); x.fill(); x.stroke(); }
 }
 function drawSkeleton(x, s, step, e = 0) { // a cartoon skeleton dancing; e = how far its bones have flown apart; feet at (0, 0)
   x.lineCap = 'round'; const bone = '#f4f2ea', edge = '#6a6878', sw = Math.sin(step) * .4;

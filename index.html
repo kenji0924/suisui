@@ -4993,9 +4993,21 @@ function drawHaka(t, dt, dk) {
       ctx.restore();
     }
   });
+  drawTamaire(t, dt, G, m, A);
   for (const f of A.flies) { f.ph += dt; const a = Math.max(0, Math.sin(f.ph * 2)); ctx.fillStyle = `rgba(190,255,120,${a * (1 - dk)})`; ctx.shadowColor = '#c8ff80'; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(f.x + Math.sin(f.ph * .7) * 20, f.y + Math.cos(f.ph * .5) * 12, 2.2, 0, 7); ctx.fill(); ctx.shadowBlur = 0; }
 }
 
+function drawTamaire(t, dt, G, m, A) { // the ball-toss basket, drawn after the gravestones so it stands in front of them
+  const c = ctx;
+  // ball-toss basket on a tall pole, red and white balls around its foot
+  const kx = Math.max(m * .09, A.bwX - m * .13); G = G + (H - G) * .18; const ktop = G - m * .5; // standing on the track, in front of the graves
+  c.fillStyle = '#c8a878'; c.fillRect(kx - 3, ktop, 6, G - ktop);
+  c.fillStyle = '#e8d8a0'; c.strokeStyle = '#8a6a3a'; c.lineWidth = 2; c.beginPath(); c.moveTo(kx - m * .06, ktop - m * .05); c.lineTo(kx + m * .06, ktop - m * .05); c.lineTo(kx + m * .04, ktop + m * .02); c.lineTo(kx - m * .04, ktop + m * .02); c.closePath(); c.fill(); c.stroke();
+  c.strokeStyle = 'rgba(138,106,58,.6)'; for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(kx + k * m * .022, ktop - m * .05); c.lineTo(kx + k * m * .016, ktop + m * .02); c.stroke(); }
+  for (let i = 0; i < 10; i++) { c.fillStyle = i % 2 ? '#fff' : '#ff5a5a'; c.beginPath(); c.arc(kx + (i - 4.5) * m * .018 + Math.sin(i * 7) * 4, G + 4 - (i % 3) * 2, m * .011, 0, 7); c.fill(); }
+  if (A.toss > 0) { A.toss = Math.max(0, A.toss - dt); for (let i = 0; i < 6; i++) { const u = Math.min(1, (1.2 - A.toss) * 1.4 - i * .08); if (u <= 0 || u >= 1) continue; const sx = kx + (i % 2 ? 1 : -1) * m * (.15 + i * .02), bx2 = sx + (kx - sx) * u, by2 = G - (G - ktop + m * .05) * Math.sin(u * Math.PI * .9) - u * m * .05; c.fillStyle = i % 2 ? '#fff' : '#ff5a5a'; c.beginPath(); c.arc(bx2, by2, m * .012, 0, 7); c.fill(); } }
+  A.basket = {x: kx, y: ktop, r: m * .1};
+}
 function drawSportsDay(t, dt, G, m, A, front) { // おばけの運動会: track lines, tent, scoreboard, ball-toss basket, finish tape
   const c = ctx;
   if (!front) {
@@ -5013,14 +5025,7 @@ function drawSportsDay(t, dt, G, m, A, front) { // おばけの運動会: track 
       c.save(); c.translate(bx + k * bw * .25, by + bh * .12); c.scale(pop, pop); c.font = `700 ${bh * .42}px "Kiwi Maru", sans-serif`; c.fillText(String(A.score[team]), 0, 0); c.restore();
     }
     A.sbBox = {x: bx, y: by, w: bw, h: bh};
-    // ball-toss basket on a tall pole, red and white balls around its foot
-    const kx = Math.max(m * .09, bx - bw / 2 - m * .13), ktop = G - m * .5; // left of the scoreboard, never behind it
-    c.fillStyle = '#c8a878'; c.fillRect(kx - 3, ktop, 6, G - ktop);
-    c.fillStyle = '#e8d8a0'; c.strokeStyle = '#8a6a3a'; c.lineWidth = 2; c.beginPath(); c.moveTo(kx - m * .06, ktop - m * .05); c.lineTo(kx + m * .06, ktop - m * .05); c.lineTo(kx + m * .04, ktop + m * .02); c.lineTo(kx - m * .04, ktop + m * .02); c.closePath(); c.fill(); c.stroke();
-    c.strokeStyle = 'rgba(138,106,58,.6)'; for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(kx + k * m * .022, ktop - m * .05); c.lineTo(kx + k * m * .016, ktop + m * .02); c.stroke(); }
-    for (let i = 0; i < 10; i++) { c.fillStyle = i % 2 ? '#fff' : '#ff5a5a'; c.beginPath(); c.arc(kx + (i - 4.5) * m * .018 + Math.sin(i * 7) * 4, G + 4 - (i % 3) * 2, m * .011, 0, 7); c.fill(); }
-    if (A.toss > 0) { A.toss = Math.max(0, A.toss - dt); for (let i = 0; i < 6; i++) { const u = Math.min(1, (1.2 - A.toss) * 1.4 - i * .08); if (u <= 0 || u >= 1) continue; const sx = kx + (i % 2 ? 1 : -1) * m * (.15 + i * .02), bx2 = sx + (kx - sx) * u, by2 = G - (G - ktop + m * .05) * Math.sin(u * Math.PI * .9) - u * m * .05; c.fillStyle = i % 2 ? '#fff' : '#ff5a5a'; c.beginPath(); c.arc(bx2, by2, m * .012, 0, 7); c.fill(); } }
-    A.basket = {x: kx, y: ktop, r: m * .1};
+    A.bwX = bx - bw / 2;
 
   }
 }
@@ -5215,6 +5220,7 @@ function drawFoxStatue(c, x, G, u, glow, away, t) { // a stone fox guardian on a
   c.fillRect(x - u * .5, G - u * .38, u * 1, u * .07); c.strokeRect(x - u * .5, G - u * .38, u * 1, u * .07);
   if (away) { c.fillStyle = 'rgba(255,240,200,.15)'; c.beginPath(); c.ellipse(x, G - u * .4, u * .3, u * .05, 0, 0, 7); c.fill(); return; }
   const b = G - u * .38;
+  c.save(); c.translate(2 * x, 0); c.scale(-1, 1); // faces left, toward the shrine
   if (glow > 0) { const g = c.createRadialGradient(x, b - u * .5, 0, x, b - u * .5, u * (1 + glow)); g.addColorStop(0, `rgba(255,240,180,${.6 * glow})`); g.addColorStop(1, 'rgba(255,240,180,0)'); c.fillStyle = g; c.fillRect(x - u * 2, b - u * 2.5, u * 4, u * 4); }
   const stone = glow > .6 ? `rgb(${200 + glow * 55},${195 + glow * 50},${185 + glow * 40})` : '#b4b0a8';
   c.fillStyle = stone; c.strokeStyle = '#5a5850';
@@ -5226,6 +5232,7 @@ function drawFoxStatue(c, x, G, u, glow, away, t) { // a stone fox guardian on a
   c.fillStyle = '#d8302a'; c.strokeStyle = '#7a1414'; c.beginPath(); c.moveTo(x - u * .14, b - u * .58); c.quadraticCurveTo(x + u * .03, b - u * .35, x + u * .18, b - u * .56); c.closePath(); c.fill(); c.stroke(); // red bib
   c.fillStyle = glow > .3 ? `rgba(255,200,60,${glow})` : '#3a3830'; c.beginPath(); c.ellipse(x + u * .11, b - u * .72, u * .025, u * .012, -.3, 0, 7); c.fill(); // eye
   if (glow > .5) { c.strokeStyle = `rgba(255,250,200,${glow})`; c.lineWidth = 2; for (let k = 0; k < 3; k++) { c.beginPath(); c.moveTo(x - u * .05 + k * u * .05, b - u * .1); c.lineTo(x + k * u * .03, b - u * (.3 + k * .1)); c.lineTo(x - u * .04 + k * u * .05, b - u * (.45 + k * .1)); c.stroke(); } } // cracks of light
+  c.restore();
 }
 function drawKyubi(x, s, step, spread = 0, t = 0) { // the nine-tailed fox, white and gold, running right; centred
   const lw = Math.max(2, s * .014); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;

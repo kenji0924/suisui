@@ -326,7 +326,7 @@ function update(c, dt, t) {
   }
   if (c.cold > 0) { // blown by the snow woman: shiver, then sneeze
     c.cold = Math.max(0, c.cold - dt); c.x += Math.sin(c.ph * 55) * 1.1;
-    if (!c.cold) { c.jump = 1; c.boost = 2; pops.push({x: c.x, y: c.y - c.h * .6, a: 1, text: 'くしゅん！'}); }
+    if (!c.cold) { c.jump = 1; c.boost = 2; }
   }
   if (c.spin > 0) c.spin = Math.max(0, c.spin - dt * 1.4);
   if (c.twirl > 0) c.twirl = Math.max(0, c.twirl - dt * 1.1); // a pirouette (princess world)
@@ -1208,25 +1208,24 @@ function tapVisitors(px, py) {
     const v = visitors[i];
     switch (v.kind) {
       case 'plesio':
-        if (inBox(v.x + v.dir * v.L * .1, v.y, v.L * 1.1, v.L * .45) && start(v, 2)) { pops.push({x: v.x + v.dir * v.L * .5, y: v.y - v.L * .4, a: 1, text: 'キュオ〜ン♪'}); burst('heart', v.x + v.dir * v.L * .6, v.y - v.L * .25, 6, v.L * .025, 90); return true; } break;
+        if (inBox(v.x + v.dir * v.L * .1, v.y, v.L * 1.1, v.L * .45) && start(v, 2)) { burst('heart', v.x + v.dir * v.L * .6, v.y - v.L * .25, 6, v.L * .025, 90); return true; } break;
       case 'mermaid':
-        if (inBox(v.x, v.y, v.s * 1.1, v.s * .5) && start(v, 3.2)) { pops.push({x: v.x, y: v.y - v.s * .45, a: 1, text: 'ラ〜ララ〜♪'}); for (const c of creatures) if (Math.abs(c.x - v.x) < W * .45) c.target = {x: v.x + (Math.random() - .5) * v.s * .8, y: v.y + (Math.random() - .5) * v.s * .5, t: 3}; return true; } break;
+        if (inBox(v.x, v.y, v.s * 1.1, v.s * .5) && start(v, 3.2)) { for (const c of creatures) if (Math.abs(c.x - v.x) < W * .45) c.target = {x: v.x + (Math.random() - .5) * v.s * .8, y: v.y + (Math.random() - .5) * v.s * .5, t: 3}; return true; } break;
       case 'submarine':
-        if (inBox(v.x, v.y - v.s * .05, v.s * 1.1, v.s * .5) && start(v, 2)) { pops.push({x: v.x, y: v.y - v.s * .45, a: 1, text: 'ピコーン！'}); for (let k = 0; k < 20; k++) bubbles.push({x: v.x + (Math.random() - .5) * v.s * .8, y: v.y - v.s * .1, r: 3 + Math.random() * 6, v: 90 + Math.random() * 120, ph: Math.random() * 6}); return true; } break;
+        if (inBox(v.x, v.y - v.s * .05, v.s * 1.1, v.s * .5) && start(v, 2)) { for (let k = 0; k < 20; k++) bubbles.push({x: v.x + (Math.random() - .5) * v.s * .8, y: v.y - v.s * .1, r: 3 + Math.random() * 6, v: 90 + Math.random() * 120, ph: Math.random() * 6}); return true; } break;
       case 'kappa':
-        if (inBox(v.x, v.y, v.sz * 1.8, v.sz * .9) && start(v, 1.2)) { burst('drop', v.x + v.dir * v.sz * .6, v.y - v.sz * .4, 14, v.sz * .05, 160); pops.push({x: v.x, y: v.y - v.sz * .8, a: 1, text: 'カッパッ！'}); return true; } break;
+        if (inBox(v.x, v.y, v.sz * 1.8, v.sz * .9) && start(v, 1.2)) { burst('drop', v.x + v.dir * v.sz * .6, v.y - v.sz * .4, 14, v.sz * .05, 160); return true; } break;
       case 'seahorse':
         if (inBox(v.x, v.y, v.w, v.h) && start(v, 2.4)) return true; break;
       case 'manta':
-        if (inBox(v.x, v.y, v.L * .9, v.S * 1.6) && start(v, 2.2)) { pops.push({x: v.x, y: v.y - v.S * .9, a: 1, text: 'くるりん'}); return true; } break;
+        if (inBox(v.x, v.y, v.L * .9, v.S * 1.6) && start(v, 2.2)) { return true; } break;
       case 'mola':
         if (inBox(v.x, v.y, v.w * .8, v.h * .7) && start(v, 2.4)) { burst('heart', v.x, v.y - v.h * .3, 8, v.w * .05, 110); return true; } break;
       case 'turtle':
         if (inBox(v.x, v.y, v.w * .9, v.h * .9) && start(v, 1.3)) { burst('spark', v.x, v.y, 8, v.w * .04, 140); return true; } break;
       case 'whale':
         if (inBox(v.x, v.y, v.w * .85, v.h * .6) && start(v, 1.6)) {
-          for (let k = 0; k < 40; k++) bubbles.push({x: v.x + v.vx * v.w * .2 + (Math.random() - .5) * 40, y: v.y - v.h * .3, r: 3 + Math.random() * 9, v: 120 + Math.random() * 160, ph: Math.random() * 6});
-          pops.push({x: v.x, y: v.y - v.h * .5, a: 1, text: 'ブオーン'}); return true;
+          for (let k = 0; k < 40; k++) bubbles.push({x: v.x + v.vx * v.w * .2 + (Math.random() - .5) * 40, y: v.y - v.h * .3, r: 3 + Math.random() * 9, v: 120 + Math.random() * 160, ph: Math.random() * 6}); return true;
         } break;
       case 'squid':
         if (inBox(v.x, v.y, v.w, v.h) && start(v, 1.2)) { burst('ink', v.x, v.y + v.h * .35, 10, v.w * .18, 70); return true; } break;
@@ -1428,7 +1427,6 @@ function checkShark() {
   const mega = DEEP, h = Math.min(W, H) * (mega ? .42 : .3), w = h * 2, v = due[0];
   const fromLeft = v.x > W / 2; // come in from the far side, so everyone can see it coming
   SND.sharkComes(); MET.add('sea', mega ? 'megalodon' : 'whiteshark');
-  if (mega) pops.push({x: W / 2, y: H * .2, a: 1, text: 'メガロドンだ〜！'});
   shark = {mega, w, h, x: fromLeft ? -w / 2 : W + w / 2, y: v.y, vx: fromLeft ? 1 : -1, vy: 0, face: fromLeft ? 1 : -1, tilt: 0, target: null, chomp: 0, t: 0};
 }
 function updateShark(dt) {
@@ -1462,8 +1460,7 @@ function updateShark(dt) {
       const hit = (px, py, f) => Math.abs(px - e.x) < e.w * f + 18 && Math.abs(py - e.y) < e.h * f + 18;
       if (!hit(mx, my, .3) && !hit(s.x, s.y, .15)) continue; // mouth on its middle, or swam right over it
       creatures.splice(creatures.indexOf(e), 1); originals.delete(e.id);
-      for (let k = 0; k < 24; k++) bubbles.push({x: e.x + (Math.random() - .5) * e.w * .6, y: e.y + (Math.random() - .5) * e.h * .6, r: 2 + Math.random() * 7, v: 60 + Math.random() * 120, ph: Math.random() * 6});
-      pops.push({x: e.x, y: e.y - e.h * .4, a: 1, text: 'パクッ！'}); SND.chomp();
+      for (let k = 0; k < 24; k++) bubbles.push({x: e.x + (Math.random() - .5) * e.w * .6, y: e.y + (Math.random() - .5) * e.h * .6, r: 2 + Math.random() * 7, v: 60 + Math.random() * 120, ph: Math.random() * 6}); SND.chomp();
       if (e === s.target) s.target = null;
       s.chomp = .35;
     }
@@ -2915,7 +2912,7 @@ function drawUfo(v, dt) {
       if (c) { const k = (B.t - .7) / 1.9; c.abduct = true; c.x = v.x + Math.sin(B.t * 6) * 6; c.y = c.baseY + (v.y + v.h * .3 - c.baseY) * k * k; c.spin2 = (c.spin2 || 0) + dt * 2; c.shrink = 1 - k * .55; }
     } else if (!B.got) {
       B.got = true; SND.twinkle();
-      if (c) { c.abduct = false; c.hidden = true; c.hideT = 4.5; c.shrink = 1; c.spin2 = 0; pops.push({x: v.x, y: v.y - v.h, a: 1, text: 'ゲット！'}); }
+      if (c) { c.abduct = false; c.hidden = true; c.hideT = 4.5; c.shrink = 1; c.spin2 = 0; }
     } else { v.x += v.dir * 520 * dt; v.y -= 260 * dt; } // zoom away
     // the beam
     const open = B.got ? 0 : Math.min(1, B.t / .5), bw = v.w * .5;
@@ -2961,7 +2958,7 @@ function drawPachy(v, dt) {
     A.x += 420 * dt; B.x -= 420 * dt; A.step += dt * 18; B.step += dt * 18; lean = .22;
     if (gap() <= touch) { // ゴツン！
       const mx = (A.x + B.x) / 2, my = v.y - v.h * .72;
-      shake = Math.max(shake, 10); burst('spark', mx, my, 14, v.w * .05, 220); pops.push({x: mx, y: my - v.h * .35, a: 1, text: 'ゴツン！'}); SND.bonk();
+      shake = Math.max(shake, 10); burst('spark', mx, my, 14, v.w * .05, 220); SND.bonk();
       v.count++; v.phase = 'recoil'; v.pt = 0;
     }
   } else if (v.phase === 'recoil') { A.x -= 160 * (1 - v.pt * 2) * dt; B.x += 160 * (1 - v.pt * 2) * dt; lean = -.15 * (1 - v.pt * 2.5);
@@ -3009,7 +3006,6 @@ function tapDino(px, py, smallOnly) {
     if (WALKERS[v.kind]) {
       if (inBox(v.x, v.y - v.h / 2, v.w * .9, v.h) && start(v, v.kind === 'trex' ? 1.6 : v.kind === 'parasaur' ? 3 : 1.5)) {
         const say = {trex: 'ガオー！', brachio: 'ブオ〜', stego: 'ピカーン', tricera: 'ドドドッ', parasaur: 'ラ〜ララ〜♪'}[v.kind];
-        pops.push({x: v.x, y: v.y - v.h * 1.05, a: 1, text: say});
         if (v.kind === 'trex') shake = 14;
         if (v.kind === 'brachio') burst('heart', v.x + v.dir * v.w * .4, v.y - v.h * .9, 6, v.w * .03, 90);
         if (v.kind === 'stego') burst('spark', v.x, v.y - v.h * .8, 12, v.w * .03, 160);
@@ -3029,7 +3025,7 @@ function tapDino(px, py, smallOnly) {
         v.count = Math.min(v.count, 2); v.phase = 'charge'; v.pt = 0; SND.visitor('pachy'); return true;
       }
     } else if (v.kind === 'ptera') {
-      for (const b of v.list) if (Math.hypot(v.x + b.dx * v.dir - px, v.y + b.dy - py) < v.s * 1.6 + 20 && start(v, 1.8)) { pops.push({x: v.x, y: v.y - v.s * 2, a: 1, text: 'キーッ！'}); return true; }
+      for (const b of v.list) if (Math.hypot(v.x + b.dx * v.dir - px, v.y + b.dy - py) < v.s * 1.6 + 20 && start(v, 1.8)) { return true; }
     } else if (v.kind === 'egg') {
       if (v.t < v.hatch && inBox(v.x, v.y - v.s, v.s * 1.6, v.s * 2)) { v.hatch = v.t + .01; return true; }
       if (v.t >= v.hatch && inBox(v.x + v.hx, v.y - v.s, v.s * 2.4, v.s * 2) && start(v, .9)) { burst('heart', v.x + v.hx, v.y - v.s * 2, 5, v.s * .2, 80); return true; }
@@ -3053,7 +3049,6 @@ function updateVolcano(dt) {
     const V = dinoScene.vol, top = GROUND() - V.h;
     if (erupt.t >= 1.8 && !erupt.boom) {
       erupt.boom = true; shake = 18; SND.boom();
-      pops.push({x: V.x, y: top - V.h * .25, a: 1, text: 'ドカーン！'});
       for (let k = 0; k < 46; k++) lava.push({x: V.x + (Math.random() - .5) * V.w * .1, y: top, vx: (Math.random() - .5) * 420, vy: -(380 + Math.random() * 520), r: 5 + Math.random() * 10});
     }
     if (erupt.boom) { // launch everything that is due (also ones that come due a moment later)
@@ -3073,7 +3068,7 @@ function updateVolcano(dt) {
 function updateLaunched(c, dt) { // returns false once it has flown away
   const L = c.launch; L.vy += 260 * dt; c.x += L.vx * dt; c.y += L.vy * dt; L.rot += dt * 9 * Math.sign(L.vx || 1);
   if (Math.random() < .5) fx.push({k: 'spark', x: c.x, y: c.y + c.h * .3, vx: 0, vy: 30, a: .8, s: c.w * .06});
-  if (c.y + c.h < 0) { pops.push({x: c.x, y: 40, a: 1, text: 'キラーン☆'}); SND.twinkle(); return false; }
+  if (c.y + c.h < 0) { SND.twinkle(); return false; }
   return c.x > -c.w * 2 && c.x < W + c.w * 2;
 }
 
@@ -3498,21 +3493,21 @@ function tapYokai(px, py) {
   for (let i = visitors.length - 1; i >= 0; i--) {
     const v = visitors[i], s = v.s;
     switch (v.kind) {
-      case 'karakasa': if (inBox(v.x, G - s * .7, s * 1.1, s * 1.5) && start(v, 1.4, 'べろ〜ん', v.x, G - s * 1.6)) return true; break;
-      case 'chochin': if (inBox(v.x, v.y, s, s * 1.2) && start(v, 1.6, 'ボッ！', v.x, v.y - s)) return true; break;
-      case 'momen': if (v.L && Math.abs(py - v.y) < v.L * .12 && (v.dir > 0 ? px < v.x + 20 && px > v.x - v.L : px > v.x - 20 && px < v.x + v.L) && start(v, 1.6, 'ひらり〜', px, v.y - v.L * .15)) return true; break;
-      case 'rokuro': if (inBox(v.x, G - s * .6, s * .7, s * 1.3) && start(v, 3, 'の〜び〜る〜', v.x, G - s * 2.2)) return true; break;
-      case 'kitsune': if (Math.abs(py - (G - s * .4)) < s * .7 && Math.min(v.x, v.x - v.dir * (v.n - 1) * s * 1.1) - s * .6 < px && px < Math.max(v.x, v.x - v.dir * (v.n - 1) * s * 1.1) + s * .6 && start(v, 1.6, 'コン！', px, G - s * 1.3)) return true; break;
-      case 'neko': if (inBox(v.x, G - s * .3, s * 1.1, s * .7) && start(v, 1.1, 'ニャ〜ン', v.x, G - s * 1.4)) { burst('heart', v.x, G - s * .8, 6, s * .06, 90); return true; } break;
-      case 'hitotsume': if (inBox(v.x, G - s * .6, s * .7, s * 1.1) && start(v, 1.4, 'ばあっ！', v.x, G - s * 1.4)) return true; break;
-      case 'tengu': if (inBox(v.x, v.y, s * 1.2, s * 1.1) && start(v, 1.4, 'びゅ〜ん！', v.x, v.y - s * .8)) { for (const c of creatures) { c.boost = 3; c.vx = v.dir * Math.abs(c.vx); } return true; } break;
+      case 'karakasa': if (inBox(v.x, G - s * .7, s * 1.1, s * 1.5) && start(v, 1.4, '', v.x, G - s * 1.6)) return true; break;
+      case 'chochin': if (inBox(v.x, v.y, s, s * 1.2) && start(v, 1.6, '', v.x, v.y - s)) return true; break;
+      case 'momen': if (v.L && Math.abs(py - v.y) < v.L * .12 && (v.dir > 0 ? px < v.x + 20 && px > v.x - v.L : px > v.x - 20 && px < v.x + v.L) && start(v, 1.6, '', px, v.y - v.L * .15)) return true; break;
+      case 'rokuro': if (inBox(v.x, G - s * .6, s * .7, s * 1.3) && start(v, 3, '', v.x, G - s * 2.2)) return true; break;
+      case 'kitsune': if (Math.abs(py - (G - s * .4)) < s * .7 && Math.min(v.x, v.x - v.dir * (v.n - 1) * s * 1.1) - s * .6 < px && px < Math.max(v.x, v.x - v.dir * (v.n - 1) * s * 1.1) + s * .6 && start(v, 1.6, '', px, G - s * 1.3)) return true; break;
+      case 'neko': if (inBox(v.x, G - s * .3, s * 1.1, s * .7) && start(v, 1.1, '', v.x, G - s * 1.4)) { burst('heart', v.x, G - s * .8, 6, s * .06, 90); return true; } break;
+      case 'hitotsume': if (inBox(v.x, G - s * .6, s * .7, s * 1.1) && start(v, 1.4, '', v.x, G - s * 1.4)) return true; break;
+      case 'tengu': if (inBox(v.x, v.y, s * 1.2, s * 1.1) && start(v, 1.4, '', v.x, v.y - s * .8)) { for (const c of creatures) { c.boost = 3; c.vx = v.dir * Math.abs(c.vx); } return true; } break;
       case 'nurikabe': if (inBox(v.x, G - s * .6, s, s * 1.3) && start(v, 2.2, 'とおせんぼ！', v.x, G - s * 2.1)) {
         shake = Math.max(shake, 8);
         for (const c of creatures) if (Math.abs(c.x - v.x) < s * 1.6) { c.vx = Math.sign(c.x - v.x || 1) * Math.max(80, Math.abs(c.vx)); c.boost = 2.5; c.jump = 1; } // everyone bumps into the wall
         return true;
       } break;
-      case 'yukionna': if (inBox(v.x, v.y - s * .1, s * .7, s * 1.2) && start(v, 3, 'ふぅ〜〜っ', v.x, v.y - s * .85)) { for (const c of creatures) c.cold = 2 + Math.random(); return true; } break;
-      case 'oni': if (inBox(v.x, G - s * .6, s * .9, s * 1.2) && start(v, 2, 'ドンドン！', v.x, G - s * 1.5)) { shake = Math.max(shake, 6); return true; } break;
+      case 'yukionna': if (inBox(v.x, v.y - s * .1, s * .7, s * 1.2) && start(v, 3, '', v.x, v.y - s * .85)) { for (const c of creatures) c.cold = 2 + Math.random(); return true; } break;
+      case 'oni': if (inBox(v.x, G - s * .6, s * .9, s * 1.2) && start(v, 2, '', v.x, G - s * 1.5)) { shake = Math.max(shake, 6); return true; } break;
     }
   }
   return false;
@@ -4230,7 +4225,7 @@ function tapPrincess(px, py) {
   for (let i = visitors.length - 1; i >= 0; i--) {
     const v = visitors[i], s = v.s;
     switch (v.kind) {
-      case 'carriage': { const cx = v.x - v.dir * s * .3; if (inBox(cx, G - s * .5, s * 1.7, s) && start(v, 1.6, 'パカラッ♪', cx, G - s * 1.3)) return true; break; }
+      case 'carriage': { const cx = v.x - v.dir * s * .3; if (inBox(cx, G - s * .5, s * 1.7, s) && start(v, 1.6, '', cx, G - s * 1.3)) return true; break; }
       case 'unicorn': if (inBox(v.x, G - s * .55, s * .9, s * 1.1) && start(v, 2.6, 'にじが でた〜！', v.x, G - s * 1.6)) return true; break;
       case 'prince': case 'prince2': case 'starprince': case 'yusha': if (!v.dance && inBox(v.x, G - s * .5, s * .5, s, 30) && start(v, 2.6, '', 0, 0)) {
         // the nearest princess (or, if there is none, the nearest drawing) is asked to dance
@@ -4243,7 +4238,7 @@ function tapPrincess(px, py) {
         for (let k = 0; k < 6; k++) fx.push({k: 'note', x: v.x + (Math.random() - .5) * s, y: G - s * (.6 + Math.random() * .5), vx: (Math.random() - .5) * 80, vy: -50, a: 1.3, s: s * .15, ph: Math.random() * 6, c: Math.floor(Math.random() * 5), two: Math.random() < .4});
         return true;
       } break;
-      case 'hakuba': if (!v.dance && inBox(v.x, G - s * .9, s * 1.4, s * 1.6, 25) && start(v, 1.2, 'パカラッ パカラッ♪', v.x, G - s * 2)) {
+      case 'hakuba': if (!v.dance && inBox(v.x, G - s * .9, s * 1.4, s * 1.6, 25) && start(v, 1.2, '', v.x, G - s * 2)) {
         const free = creatures.filter(c => !c.ascend && !c.hidden && !c.abduct && !c.drop && !c.launch && !c.dance);
         const prin = free.filter(c => c.princess || /ひめ|プリンセス|じょおう/.test(c.name || ''));
         const pool = prin.length ? prin : free;
@@ -4252,13 +4247,13 @@ function tapPrincess(px, py) {
         return true;
       } break;
       case 'aladdin': if (inBox(v.hx ?? v.x, (v.hy ?? v.y) - s * .2, s * 1.1, s * .7) && start(v, 2.6, '', 0, 0)) { fx.push({k: 'puff', x: v.x + v.dir * s * .35, y: v.y - s * .4, vx: 0, vy: -20, a: 1, s: s * .3}); for (const c of creatures) burst('spark', c.x, c.y - c.h * .4, 6, c.w * .06, 120); return true; } break;
-      case 'frog': if (inBox(v.x, G - s * .4, s, s, 30) && start(v, 1.4, 'ポンッ！ ケロ〜ン♪', v.x, G - s * 2)) { fx.push({k: 'puff', x: v.x, y: G - s * .4, vx: 0, vy: 0, a: 1, s: s * .9}); burst('heart', v.x, G - s, 5, s * .15, 120); return true; } break;
-      case 'mice': { const mid = v.x - v.dir * s * 1.1; if (inBox(mid, G - s * .5, s * 3.4, s * 1.1) && start(v, 2.4, 'パンパカパーン♪', mid, G - s * 1.7)) return true; break; }
+      case 'frog': if (inBox(v.x, G - s * .4, s, s, 30) && start(v, 1.4, '', v.x, G - s * 2)) { fx.push({k: 'puff', x: v.x, y: G - s * .4, vx: 0, vy: 0, a: 1, s: s * .9}); burst('heart', v.x, G - s, 5, s * .15, 120); return true; } break;
+      case 'mice': { const mid = v.x - v.dir * s * 1.1; if (inBox(mid, G - s * .5, s * 3.4, s * 1.1) && start(v, 2.4, '', mid, G - s * 1.7)) return true; break; }
       case 'majo': if (inBox(v.x, v.y - s * .45, s * .6, s, 25) && start(v, 2.2, 'ちちんぷいぷい〜！', v.x, v.y - s * 1.2)) { for (const c of creatures) { c.crown = 12; burst('spark', c.x, c.y - c.h * .6, 5, c.w * .06, 80); } return true; } break;
-      case 'fairy': if (inBox(v.hx ?? v.x, v.hy ?? v.y, s * 1.2, s * 1.4, 30) && start(v, 1.8, 'キラキラ〜☆', v.hx ?? v.x, (v.hy ?? v.y) - s)) { for (const c of creatures) { c.jump = 1; burst('spark', c.x, c.y, 8, c.w * .06, 140); } return true; } break;
+      case 'fairy': if (inBox(v.hx ?? v.x, v.hy ?? v.y, s * 1.2, s * 1.4, 30) && start(v, 1.8, '', v.hx ?? v.x, (v.hy ?? v.y) - s)) { for (const c of creatures) { c.jump = 1; burst('spark', c.x, c.y, 8, c.w * .06, 140); } return true; } break;
       case 'angel': if (inBox(v.x, v.hy ?? v.y, s * 1.1, s * 1.1, 25) && start(v, 3, 'しあわせに なあれ♡', v.x, (v.hy ?? v.y) - s * .8)) { burst('heart', v.x, v.hy ?? v.y, 8, s * .1, 150); return true; } break;
-      case 'dragon': if (inBox(v.x, v.y, s * .9, s * .7) && start(v, 2, 'ハートの ほのお〜！', v.x, v.y - s * .8)) return true; break;
-      case 'butterflies': if (v.list.some(b => b.px !== undefined && Math.hypot(px - b.px, py - b.py) < s * 1.5) && start(v, 2.5, 'ひらひら〜', px, py - s * 2)) return true; break;
+      case 'dragon': if (inBox(v.x, v.y, s * .9, s * .7) && start(v, 2, '', v.x, v.y - s * .8)) return true; break;
+      case 'butterflies': if (v.list.some(b => b.px !== undefined && Math.hypot(px - b.px, py - b.py) < s * 1.5) && start(v, 2.5, '', px, py - s * 2)) return true; break;
     }
   }
   return false;
@@ -4424,13 +4419,13 @@ function tapDeep(px, py) {
     const v = visitors[i], s = v.s; if (!DEEP_KINDS.includes(v.kind)) continue;
     const G = H * .9;
     switch (v.kind) {
-      case 'angler': if (inBox(v.x + v.dir * s * .1, v.y - s * .1, s * .9, s * .8) && start(v, 2.4, 'ピカーッ！', v.x, v.y - s * .8)) { for (const c of creatures) if (Math.abs(c.x - v.x) < W * .4) c.target = {x: v.x + v.dir * s * .55, y: v.y - s * .4, t: 2}; return true; } break;
-      case 'mendako': if (inBox(v.x, v.y, s * .9, s * .6) && start(v, 1.8, 'ふわ〜ん', v.x, v.y - s * .6)) return true; break;
-      case 'gusoku': if (inBox(v.x, G - s * .15, s * .9, s * .4) && start(v, 1.6, 'まるまる〜', v.x, G - s * .7)) return true; break;
-      case 'takaashi': if (inBox(v.x, G - s * .5, s * 1.6, s, 10) && start(v, 2, 'チョキ チョキ！', v.x, G - s * 1.3)) return true; break;
-      case 'demenigisu': if (inBox(v.x, v.y, s * .9, s * .6) && start(v, 2, 'キョロッ！', v.x, v.y - s * .6)) return true; break;
-      case 'daiouika': if (inBox(v.x - v.dir * s * .1, v.y, s * 1.3, s * .4) && start(v, 2.2, 'ぷしゅ〜！', v.x, v.y - s * .4)) { burst('ink', v.x - v.dir * s * .1, v.y, 18, s * .06, 160); return true; } break;
-      case 'hotaruika': if (v.list.some(b => b.px !== undefined && Math.hypot(px - b.px, py - b.py) < s * 1.8) && start(v, 2.4, 'キラキラ〜', px, py - s * 2)) return true; break;
+      case 'angler': if (inBox(v.x + v.dir * s * .1, v.y - s * .1, s * .9, s * .8) && start(v, 2.4, '', v.x, v.y - s * .8)) { for (const c of creatures) if (Math.abs(c.x - v.x) < W * .4) c.target = {x: v.x + v.dir * s * .55, y: v.y - s * .4, t: 2}; return true; } break;
+      case 'mendako': if (inBox(v.x, v.y, s * .9, s * .6) && start(v, 1.8, '', v.x, v.y - s * .6)) return true; break;
+      case 'gusoku': if (inBox(v.x, G - s * .15, s * .9, s * .4) && start(v, 1.6, '', v.x, G - s * .7)) return true; break;
+      case 'takaashi': if (inBox(v.x, G - s * .5, s * 1.6, s, 10) && start(v, 2, '', v.x, G - s * 1.3)) return true; break;
+      case 'demenigisu': if (inBox(v.x, v.y, s * .9, s * .6) && start(v, 2, '', v.x, v.y - s * .6)) return true; break;
+      case 'daiouika': if (inBox(v.x - v.dir * s * .1, v.y, s * 1.3, s * .4) && start(v, 2.2, '', v.x, v.y - s * .4)) { burst('ink', v.x - v.dir * s * .1, v.y, 18, s * .06, 160); return true; } break;
+      case 'hotaruika': if (v.list.some(b => b.px !== undefined && Math.hypot(px - b.px, py - b.py) < s * 1.8) && start(v, 2.4, '', px, py - s * 2)) return true; break;
     }
   }
   return false;

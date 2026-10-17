@@ -550,6 +550,7 @@ const SND = (() => {
         case 'demenigisu': tone('sine', [600, 1200], 0, .15, .12); tone('sine', [1200, 900], .2, .3, .1); break;
         case 'jinbei':   tone('sine', [90, 70], 0, 1.4, .3, sfxBus, .2); noise(.3, 1, .3, 600, 200, .6); break;
         case 'urikurage': [96, 100, 103, 107, 110, 115].forEach((m, i) => tone('sine', hz(m), i * .09, .8, .05)); break;
+        case 'dugong':   tone('sine', [400, 600], 0, .4, .12); tone('sine', [600, 450], .4, .5, .1); break;
         case 'blobfish': tone('sine', [300, 150], 0, .5, .2); tone('sine', [320, 160], .25, .5, .12); break;
         case 'nautilus': tone('triangle', [700, 300], 0, .25, .12); noise(.1, .4, .35, 1500, 400, .8); break;
         case 'daiouika': noise(0, .6, .6, 1800, 250, .7); tone('sine', [120, 60], 0, .6, .25); break;
@@ -810,7 +811,7 @@ function spawnVisitor(kind) {
 function scheduleVisitors() {
   if (clock < nextVisit) return;
   nextVisit = clock + VISIT_EVERY;
-  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'starprince', 'hakuba', 'yusha', 'aladdin', 'mice', 'majo', 'fairy', 'angel', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : DEEP ? DEEP_GUESTS : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'seahorse', 'manta', 'clione', 'kappa', 'plesio', 'mermaid', 'jinbei']).filter(k => k !== lastKind);
+  const kinds = (WORLD === 'princess' ? ['carriage', 'unicorn', 'prince', 'prince2', 'starprince', 'hakuba', 'yusha', 'aladdin', 'mice', 'majo', 'fairy', 'angel', 'dragon', 'butterflies'] : WORLD === 'yokai' ? ['karakasa', 'chochin', 'momen', 'rokuro', 'kitsune', 'neko', 'hitotsume', 'tengu', 'oni', 'nurikabe', 'yukionna'] : WORLD === 'dino' ? ['brachio', 'trex', 'stego', 'tricera', 'ptera', 'egg', 'star', 'parasaur', 'pachy', 'ufo'] : DEEP ? DEEP_GUESTS : ['squid', 'mola', 'turtle', 'school', 'whale', 'eels', 'crab', 'seahorse', 'manta', 'clione', 'kappa', 'plesio', 'mermaid', 'jinbei', 'dugong']).filter(k => k !== lastKind);
   // secret sea guests only come once enough of your own drawings are swimming (samples, guests and the shark don't count)
   const SECRET = {oarfish: 1, kappa: 2, plesio: 3, submarine: 4, mermaid: 5};
   const mine = creatures.filter(c => c.user && !c.ascend && !c.launch).length;
@@ -2470,7 +2471,7 @@ const GUESTS = {
     ['kappa', 'カッパ', 'あたまの おさらが かわくと げんきが なくなる'], ['plesio', 'プレシオサウルス', 'きょうりゅうの じだいの うみの なかま'],
     ['mermaid', 'にんぎょひめ', 'うみの なかで いちばん うたが じょうず'],
     ['whiteshark', 'ホオジロザメ', 'うみの ハンター。3ぷんたった えを たべに くるよ'], ['megalodon', 'メガロドン', 'むかし いた きょだいな サメ。しんかいに ひそんでいるかも…'],
-    ['jinbei', 'ジンベエザメ', 'せかいで いちばん おおきな さかな。でも とっても やさしい'],
+    ['jinbei', 'ジンベエザメ', 'せかいで いちばん おおきな さかな。でも とっても やさしい'], ['dugong', 'ジュゴン', 'うみの くさを もぐもぐ たべる のんびりやさん'],
     ['angler', 'チョウチンアンコウ', 'あたまの ちょうちんを ひからせて えさを よぶよ'], ['mendako', 'メンダコ', 'みみみたいな ヒレで ぱたぱた およぐ'], ['gusoku', 'ダイオウグソクムシ', 'なんねんも ごはんを たべなくても へいき'], ['hotaruika', 'ホタルイカ', 'からだが あおく ひかる ちいさな イカ'],
     ['daiouika', 'ダイオウイカ', 'せかいで いちばん おおきい なかまの イカ'], ['demenigisu', 'デメニギス', 'あたまが すきとおった ふしぎな さかな'], ['takaashi', 'タカアシガニ', 'あしを ひろげると 3メートルにも なる カニ'],
     ['blobfish', 'ブロブフィッシュ', 'ふかい うみでは ふつうの さかなの かたちを しているよ'], ['nautilus', 'オウムガイ', 'むかしから すがたが かわらない 「いきた かせき」'], ['urikurage', 'シンカイウリクラゲ', 'からだに にじいろの ひかりが ながれる クラゲの なかま'],
@@ -2508,7 +2509,8 @@ function guestThumb(kind) { // draw one visitor on its own (the tank is hidden b
       if (v.kind === 'school') { v.vx = 1; v.x = W * .65; }
       else if (v.kind === 'mola' || v.kind === 'turtle' || v.kind === 'whale') { v.vx = 1; v.x = W * .5; }
       else if (v.kind === 'oarfish' || v.kind === 'momen') v.x = W * .5 + v.L * .45;
-      else if (v.kind === 'squid' || v.kind === 'urikurage') v.y = H * .6;
+      else if (v.kind === 'squid') v.y = H * .6;
+      else if (v.kind === 'urikurage') v.list.forEach((j, i) => { j.y = H * (.4 + (i % 2) * .2); });
       else if (v.kind === 'clione') v.list.forEach((c, i) => { c.y = H * (.45 + (i % 2) * .1); });
       else if (v.kind === 'pachy') { v.a.x = v.cx - v.w * .9; v.b.x = v.cx + v.w * .9; }
       else if (v.kind === 'eels') v.eels.forEach(e => { e.delay = 0; });
@@ -4311,7 +4313,7 @@ const princessSamples = [
    Same tank and drawings, deeper water: dark blue, falling marine snow, glowing creatures. */
 let DEEP = false, diveT = null, deepScene = null;
 const DEEP_KINDS = ['angler', 'mendako', 'gusoku', 'hotaruika', 'daiouika', 'demenigisu', 'takaashi', 'blobfish', 'nautilus', 'urikurage'];
-const DEEP_HANDLED = DEEP_KINDS.concat(['jinbei']); // guests drawn by the code below (jinbei lives in the shallow sea)
+const DEEP_HANDLED = DEEP_KINDS.concat(['jinbei', 'dugong']); // guests drawn by the code below (jinbei lives in the shallow sea)
 const DEEP_GUESTS = DEEP_KINDS.concat(['oarfish', 'submarine']); // guests seen in the deep sea
 function buildDeepScene() {
   const m = Math.min(W, H);
@@ -4383,7 +4385,8 @@ function spawnDeep(kind) {
   else if (kind === 'takaashi') add({s: m * .3, x: from(m * .5), y: 0});
   else if (kind === 'demenigisu') add({s: m * .38, x: from(m * .2), y: H * (.3 + Math.random() * .3)});
   else if (kind === 'jinbei') add({s: Math.max(W * .55, m * .95), x: from(Math.max(W * .3, m * .5)), y: H * (.35 + Math.random() * .2)});
-  else if (kind === 'urikurage') add({s: m * .3, x: W * (.2 + Math.random() * .6), y: H + m * .15, dir: 1});
+  else if (kind === 'urikurage') { const s = m * .24; add({s, x: W / 2, y: H, dir: 1, list: Array.from({length: 5}, (_, i) => ({x: W * (.12 + i * .19 + (Math.random() - .5) * .08), y: H + s * (.6 + Math.random() * 1.6), ph: Math.random() * 6, v: 18 + Math.random() * 10}))}); }
+  else if (kind === 'dugong') add({s: m * .5, x: from(m * .35), y: H * (.55 + Math.random() * .15)});
   else if (kind === 'blobfish') add({s: m * .26, x: from(m * .2), y: H * (.7 + Math.random() * .08)});
   else if (kind === 'nautilus') add({s: m * .22, x: from(m * .2), y: H * (.3 + Math.random() * .3)});
   else if (kind === 'daiouika') add({layer: 'back', s: m * .9, x: from(m * .65), y: H * (.3 + Math.random() * .2)});
@@ -4430,10 +4433,19 @@ function drawDeepVisitor(v, dt, P) {
       ctx.translate(v.x, v.y); ctx.scale(v.dir, 1); drawJinbei(ctx, s, v.t, open);
       return !gone(s * .6);
     }
-    case 'urikurage': { // a comb jelly rising slowly, rainbow light rippling along its rows
-      v.y -= (act ? 10 : 22) * dt; v.x += Math.sin(v.t * .7) * 12 * dt;
-      ctx.translate(v.x, v.y); ctx.rotate(Math.sin(v.t * .9) * .15); drawUrikurage(ctx, s, v.t, act ? Math.sin(P * Math.PI) : 0);
-      return v.y > -s;
+    case 'urikurage': { // five comb jellies rising slowly, rainbow light rippling along their rows
+      let alive = false; const glow = act ? Math.sin(P * Math.PI) : 0;
+      for (const j of v.list) {
+        j.ph += dt; j.y -= j.v * (act ? .4 : 1) * dt; j.x += Math.sin(j.ph * .7) * 12 * dt; if (j.y > -s) alive = true;
+        ctx.save(); ctx.translate(j.x, j.y); ctx.rotate(Math.sin(j.ph * .9) * .15); drawUrikurage(ctx, s, v.t + j.ph, glow); ctx.restore();
+      }
+      return alive;
+    }
+    case 'dugong': { // a gentle sea cow; tap -> a slow happy roll with bubbles
+      v.x += v.dir * (act ? 15 : 32) * dt; v.y += Math.sin(v.t * .7) * 8 * dt;
+      if (act && Math.random() < .3) bubbles.push({x: v.x + v.dir * s * .4, y: v.y - s * .05, r: 2 + Math.random() * 5, v: 60 + Math.random() * 50, ph: Math.random() * 6});
+      ctx.translate(v.x, v.y); ctx.scale(v.dir, act ? Math.cos(P * Math.PI * 2) : 1); drawDugong(ctx, s, v.t);
+      return !gone(s * .6);
     }
     case 'blobfish': { // a droopy pink blob; tap -> it jiggles like jelly
       v.x += v.dir * (act ? 4 : 18) * dt; v.y += Math.sin(v.t * .8) * 6 * dt;
@@ -4478,7 +4490,8 @@ function tapDeep(px, py) {
       case 'takaashi': if (inBox(v.x, G - s * .5, s * 1.6, s, 10) && start(v, 2, '', v.x, G - s * 1.3)) return true; break;
       case 'demenigisu': if (inBox(v.x, v.y, s * .9, s * .6) && start(v, 2, '', v.x, v.y - s * .6)) return true; break;
       case 'jinbei': if (inBox(v.x, v.y, s * 1.05, s * .32) && start(v, 2.6, '', 0, 0)) return true; break;
-      case 'urikurage': if (inBox(v.x, v.y, s * .55, s * .8) && start(v, 2.4, '', 0, 0)) return true; break;
+      case 'urikurage': if (v.list.some(j => inBox(j.x, j.y, s * .5, s * .75)) && start(v, 2.4, '', 0, 0)) return true; break;
+      case 'dugong': if (inBox(v.x, v.y, s * 1, s * .35) && start(v, 2, '', 0, 0)) { burst('heart', v.x + v.dir * s * .4, v.y - s * .2, 5, s * .04, 80); return true; } break;
       case 'blobfish': if (inBox(v.x, v.y, s * .8, s * .6) && start(v, 2, '', 0, 0)) return true; break;
       case 'nautilus': if (inBox(v.x, v.y, s * .9, s * .8) && start(v, 1.6, '', 0, 0)) { for (let k = 0; k < 14; k++) bubbles.push({x: v.x + (Math.random() - .5) * s * .4, y: v.y, r: 2 + Math.random() * 5, v: 80 + Math.random() * 80, ph: Math.random() * 6}); return true; } break;
       case 'daiouika': if (inBox(v.x - v.dir * s * .1, v.y, s * 1.3, s * .4) && start(v, 2.2, '', v.x, v.y - s * .4)) { burst('ink', v.x - v.dir * s * .1, v.y, 18, s * .06, 160); return true; } break;
@@ -4604,6 +4617,18 @@ function drawUrikurage(x, s, t, glow = 0) { // シンカイウリクラゲ: a se
     }
   }
   x.shadowBlur = 0;
+}
+function drawDugong(x, s, t) { // ジュゴン, facing right; s = body length, centred
+  const lw = Math.max(2, s * .008), wag = Math.sin(t * 2) * s * .04; x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
+  x.fillStyle = '#9a9aa6'; x.strokeStyle = '#4a4a58';
+  x.beginPath(); x.moveTo(-s * .36, 0); x.quadraticCurveTo(-s * .45, -s * .02 + wag, -s * .52, -s * .1 + wag); x.quadraticCurveTo(-s * .47, wag, -s * .52, s * .1 + wag); x.quadraticCurveTo(-s * .45, s * .02 + wag, -s * .36, s * .03); x.fill(); x.stroke(); // whale-like fluke
+  x.beginPath(); x.moveTo(-s * .38, s * .01); x.quadraticCurveTo(-s * .2, -s * .14, s * .18, -s * .12); x.quadraticCurveTo(s * .36, -s * .1, s * .4, s * .0); x.quadraticCurveTo(s * .38, s * .12, s * .15, s * .12); x.quadraticCurveTo(-s * .2, s * .12, -s * .38, s * .01); x.fill(); x.stroke(); // plump body
+  x.fillStyle = '#c4c2cc'; x.beginPath(); x.ellipse(0, s * .08, s * .3, s * .035, 0, 0, 7); x.fill(); // pale belly
+  x.fillStyle = '#8a8a96'; x.beginPath(); x.ellipse(s * .17, s * .1, s * .07, s * .025, .5 + Math.sin(t * 2.4) * .3, 0, 7); x.fill(); x.stroke(); // flipper
+  x.fillStyle = '#a8a6b0'; x.beginPath(); x.ellipse(s * .41, s * .05, s * .06, s * .055, .4, 0, 7); x.fill(); x.stroke(); // downturned snout
+  x.fillStyle = '#4a4a58'; for (const [a, b] of [[.4, .06], [.43, .07], [.42, .04], [.45, .05]]) { x.beginPath(); x.arc(a * s, b * s, s * .004, 0, 7); x.fill(); } // whiskers
+  x.fillStyle = '#1a1a22'; x.beginPath(); x.arc(s * .31, -s * .03, s * .012, 0, 7); x.fill();
+  x.fillStyle = 'rgba(255,150,170,.45)'; x.beginPath(); x.arc(s * .33, s * .01, s * .016, 0, 7); x.fill();
 }
 function drawBlobfish(x, s, t, sad) { // ブロブフィッシュ: a soft pink blob with a big droopy nose; centred, facing right
   const lw = Math.max(2, s * .014); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;

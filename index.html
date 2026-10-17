@@ -3161,12 +3161,12 @@ function setWorld(w) {
 }
 function showWorld() {
   const dino = WORLD === 'dino';
-  document.getElementById('desc').textContent = WORLD === 'yokai' && YKA === -1 ? '縁日の屋台にやってきました。屋台をタッチすると、金魚がはねたり、わたあめがふくらんだりします。入れた絵は3分たつと花火といっしょに空へ帰ります。左にスワイプすると神社にもどります。'
-    : WORLD === 'yokai' && YKA === 1 ? 'おはかで おばけの運動会！ おばけたちのリレーや、ほねほねダンスが見られます。入れた絵は3分たつと朝になって空へ帰ります。右にスワイプすると神社にもどります。'
+  document.getElementById('desc').textContent = WORLD === 'yokai' && YKA === -1 ? '縁日の屋台にやってきました。屋台をタッチすると、金魚がはねたり、わたあめがふくらんだりします。入れた絵は3分たつと花火といっしょに空へ帰ります。右にスワイプすると神社にもどります。'
+    : WORLD === 'yokai' && YKA === 1 ? 'おはかで おばけの運動会！ おばけたちのリレーや、ほねほねダンスが見られます。入れた絵は3分たつと朝になって空へ帰ります。左にスワイプすると神社にもどります。'
     : WORLD === 'princess'
     ? 'スキャンした絵や写真を入れると、白い紙の部分を消してお城の庭で動きだします。タッチするとジャンプします。30秒ごとにお客さん（かぼちゃの馬車、ユニコーン、ようせいなど）が通りかかります。入れた絵は3分たつと12時の鐘が鳴って、おうちへ帰っていきます。'
     : WORLD === 'yokai'
-    ? 'スキャンした絵や写真を入れると、白い紙の部分を消して妖怪のおまつりで動きだします。タッチするとジャンプします。30秒ごとにお客さん（からかさおばけ、ちょうちんおばけ、きつねなど）が通りかかります。入れた絵は3分たつと朝になって、空へ帰っていきます。右にスワイプすると縁日の屋台、左にスワイプするとおはかに行けます。'
+    ? 'スキャンした絵や写真を入れると、白い紙の部分を消して妖怪のおまつりで動きだします。タッチするとジャンプします。30秒ごとにお客さん（からかさおばけ、ちょうちんおばけ、きつねなど）が通りかかります。入れた絵は3分たつと朝になって、空へ帰っていきます。右にスワイプするとおはか、左にスワイプすると縁日の屋台に行けます。'
     : dino
     ? 'スキャンした絵や写真を入れると、白い紙の部分を消して恐竜の世界で動きだします。タッチするとジャンプします。30秒ごとにお客さん（ティラノサウルス、プテラノドン、トリケラトプスなど）が通りかかります。入れた絵は3分たつと火山が噴火して飛んでいきます。'
     : DEEP ? '深海にやってきました。ひかる生きものや、ふしぎな生きものが通りかかります。タッチするとジャンプします。画面を下にスワイプすると、もとの海にもどります。入れた絵は3分たつとサメが食べに来ます。'
@@ -4435,7 +4435,7 @@ function drawDiveHint() {
   const sz = Math.max(12, Math.min(W, H) * .028);
   ctx.save(); ctx.font = `500 ${sz}px "Kiwi Maru", "Hiragino Maru Gothic ProN", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(220,245,255,.5)';
-  if (DEEP) ctx.fillText('⬇ スワイプで うみへ もどる', W / 2, sz * 1.4); else ctx.fillText('⬆ スワイプで しんかいへ', W / 2, H - sz * 1.3);
+  if (DEEP) ctx.fillText('△ うみ', W / 2, sz * 1.4); else ctx.fillText('しんかい ▽', W / 2, H - sz * 1.3);
   ctx.restore();
 }
 // swipe detection on the tank
@@ -4817,7 +4817,7 @@ function buildYkArea() {
   };
 }
 function startYkMove(d) { // d = +1 (finger moved right) or -1
-  const to = Math.max(-1, Math.min(1, YKA - d));
+  const to = Math.max(-1, Math.min(1, YKA + d)); // finger right pulls in the scene on the left (the graveyard)
   if (ykT || to === YKA || WORLD !== 'yokai') return;
   ykT = {t: 0, to, d, swapped: false}; SND.whee();
 }
@@ -4831,13 +4831,19 @@ function updateYkMove(dt) {
   for (let i = 0; i < 20; i++) { const y = (i * 71.3) % H, x = ((i * 113.7 + T.t * 1600 * T.d) % W + W) % W; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - T.d * 50, y); ctx.stroke(); }
   if (T.t > 1.1) ykT = null;
 }
+function edgeLabel(text, side) { // a destination written vertically at the middle of the left / right edge, with an arrow
+  const sz = Math.max(13, Math.min(W, H) * .032), chars = [...text], x = side < 0 ? sz * 1.1 : W - sz * 1.1, h = (chars.length + 1.4) * sz * 1.1, y0 = H / 2 - h / 2;
+  ctx.save(); ctx.font = `500 ${sz}px "Kiwi Maru", "Hiragino Maru Gothic ProN", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x - sz * .8, y0 - sz * .4, sz * 1.6, h + sz * .3, sz * .8) : ctx.rect(x - sz * .8, y0 - sz * .4, sz * 1.6, h + sz * .3); ctx.fill();
+  ctx.fillStyle = 'rgba(255,240,220,.7)'; ctx.fillText(side < 0 ? '◁' : '▷', x, y0 + sz * .3);
+  chars.forEach((ch, i) => ctx.fillText(ch, x, y0 + sz * (1.6 + i * 1.1)));
+  ctx.restore();
+}
 function drawYkHint() {
   if (WORLD !== 'yokai' || ykT) return;
-  const sz = Math.max(12, Math.min(W, H) * .028), y = H - sz * 1.3;
-  ctx.save(); ctx.font = `500 ${sz}px "Kiwi Maru", "Hiragino Maru Gothic ProN", sans-serif`; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,240,220,.55)';
-  const L = {'-1': '⬅ じんじゃ', '0': '⬅ おはか', '1': ''}[YKA], R = {'-1': '', '0': 'えんにち ➡', '1': 'じんじゃ ➡'}[YKA];
-  ctx.textAlign = 'left'; if (L) ctx.fillText(L, Math.max(sz, 96), y); // clear of the パネル button ctx.textAlign = 'right'; if (R) ctx.fillText(R, W - sz, y);
-  ctx.restore();
+  // the graveyard (YKA 1) lies to the left, the fair (YKA -1) to the right
+  const L = {'-1': 'じんじゃ', '0': 'おはか', '1': ''}[YKA], R = {'-1': '', '0': 'えんにち', '1': 'じんじゃ'}[YKA];
+  if (L) edgeLabel(L, -1); if (R) edgeLabel(R, 1);
 }
 
 /* ---------- the fair (縁日) ---------- */
@@ -4965,7 +4971,8 @@ function spawnYkArea(kind) {
   else if (kind === 'zashiki' || kind === 'nurari' || kind === 'nopperao') { // shoppers: walk to their stall, buy something, walk on
     const type = {zashiki: 'wataame', nurari: 'shateki', nopperao: 'omen'}[kind], S = ykArea && ykArea.stalls.find(st => st.type === type);
     const dir = kind === 'nopperao' ? 1 : side; // the faceless man always comes from the left
-    add({s: m * (kind === 'zashiki' ? .24 : .32), dir, x: dir > 0 ? -m * .15 : W + m * .15, y: G, stop: S ? S.x : null, S, ph: 'walk', wait: 0, bought: false});
+    const sx = S ? (kind === 'nurari' ? S.x - dir * (S.w * .5 + m * .1) : S.x) : null; // the shooter stands beside the stall and fires across it
+    add({s: m * (kind === 'zashiki' ? .24 : .32), dir, x: dir > 0 ? -m * .15 : W + m * .15, y: G, stop: sx, S, ph: 'walk', wait: 0, bought: false});
   }
   else if (kind === 'gaikotsu') add({s: m * .38, x: from(m * .15), y: G});
   else if (kind === 'ykkappa') { // pops up out of the goldfish tub
@@ -5154,18 +5161,39 @@ function drawZashiki(x, s, step, candy = false, hop = 0) { // zashiki-warashi in
   if (candy) { x.strokeStyle = '#d8c8a0'; x.lineWidth = s * .015; x.beginPath(); x.moveTo(s * .18, -s * .38); x.lineTo(s * .22, -s * .62); x.stroke();
     x.fillStyle = '#ffc8e4'; for (const [a, b, r] of [[.22, -.72, .11], [.15, -.67, .07], [.29, -.67, .07], [.22, -.82, .07]]) { x.beginPath(); x.arc(a * s, b * s, r * s, 0, 7); x.fill(); } }
 }
-function drawNurari(x, s, step, aim = 0, laugh = 0) { // nurarihyon: an old gentleman with a long bald head and a haori; feet at (0, 0)
+function drawNurari(x, s, step, aim = 0, laugh = 0) { // nurarihyon: the stern old master of yokai, a huge bald head, haori and a pipe; feet at (0, 0)
   const lw = Math.max(2, s * .016); x.lineJoin = x.lineCap = 'round'; x.lineWidth = lw;
-  x.fillStyle = '#5a4a7a'; x.strokeStyle = '#2a1e40'; x.beginPath(); x.moveTo(-s * .13, -s * .58); x.lineTo(s * .13, -s * .58); x.lineTo(s * .19, 0); x.lineTo(-s * .19, 0); x.closePath(); x.fill(); x.stroke(); // kimono
-  x.fillStyle = '#c9a24a'; x.strokeStyle = '#6a5020'; x.beginPath(); x.moveTo(-s * .18, -s * .6); x.lineTo(-s * .05, -s * .6); x.lineTo(-s * .08, -s * .1); x.lineTo(-s * .22, -s * .08); x.closePath(); x.fill(); x.stroke(); // haori
-  x.fillStyle = '#f4e0c8'; x.strokeStyle = '#a88a6a'; x.beginPath(); x.ellipse(0, -s * .72, s * .1, s * .09, 0, 0, 7); x.fill(); x.stroke(); // face
-  x.beginPath(); x.ellipse(-s * .03, -s * .9, s * .12, s * .16, -.2, 0, 7); x.fill(); x.stroke(); // the long gourd-like head
-  x.fillStyle = '#fff'; x.beginPath(); x.ellipse(-s * .08, -s * .66, s * .03, s * .05, 0, 0, 7); x.fill(); // sideburn
-  x.fillStyle = '#222'; x.strokeStyle = '#222'; x.lineWidth = Math.max(1.5, s * .01); for (const k of [0, 1]) { x.beginPath(); if (laugh > .3) { x.arc(s * (.0 + k * .06), -s * .74, s * .015, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); } else { x.arc(s * (.0 + k * .06), -s * .74, s * .012, 0, 7); x.fill(); } }
-  x.beginPath(); x.arc(s * .04, -s * .68, s * (.02 + laugh * .02), .2, Math.PI - .2); x.stroke();
-  x.lineWidth = lw; x.fillStyle = '#5a4a7a'; x.strokeStyle = '#2a1e40';
-  if (aim) { x.beginPath(); x.ellipse(s * .14, -s * .5, s * .1, s * .04, -.1, 0, 7); x.fill(); x.stroke(); x.fillStyle = '#5a3a20'; x.fillRect(s * .1, -s * .55, s * .26, s * .03); } // aiming the cork gun
-  else { x.beginPath(); x.ellipse(s * .1, -s * .42, s * .05, s * .1, -.3, 0, 7); x.fill(); x.stroke(); }
+  const sw = Math.sin(step) * s * .02;
+  x.fillStyle = '#2a2433'; x.strokeStyle = '#0e0b14'; // dark hakama
+  x.beginPath(); x.moveTo(-s * .12, -s * .42); x.lineTo(s * .12, -s * .42); x.lineTo(s * .17 + sw, 0); x.lineTo(-s * .17 - sw, 0); x.closePath(); x.fill(); x.stroke();
+  x.strokeStyle = 'rgba(120,110,140,.6)'; x.beginPath(); for (const k of [-.06, 0, .06]) { x.moveTo(k * s, -s * .4); x.lineTo(k * s * 1.6, -s * .02); } x.stroke();
+  x.fillStyle = '#6a5a2a'; x.strokeStyle = '#2a2010'; // haori with a wide collar
+  x.beginPath(); x.moveTo(-s * .14, -s * .66); x.lineTo(s * .14, -s * .66); x.lineTo(s * .17, -s * .36); x.lineTo(-s * .19, -s * .3); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#e8e0d0'; x.beginPath(); x.moveTo(-s * .03, -s * .66); x.lineTo(s * .05, -s * .66); x.lineTo(s * .01, -s * .5); x.closePath(); x.fill(); // under-kimono
+  x.fillStyle = '#c9a24a'; x.beginPath(); x.arc(-s * .09, -s * .58, s * .018, 0, 7); x.fill(); // crest
+  // the head: a long, swollen bald skull sweeping up and back
+  x.fillStyle = '#e8d4b8'; x.strokeStyle = '#7a6448';
+  x.beginPath(); x.moveTo(s * .08, -s * .68); x.quadraticCurveTo(s * .16, -s * .78, s * .1, -s * .9); x.quadraticCurveTo(s * .08, -s * 1.12, -s * .1, -s * 1.22);
+  x.quadraticCurveTo(-s * .3, -s * 1.28, -s * .3, -s * 1.08); x.quadraticCurveTo(-s * .28, -s * .86, -s * .14, -s * .78); x.quadraticCurveTo(-s * .06, -s * .66, s * .08, -s * .68); x.closePath(); x.fill(); x.stroke();
+  x.strokeStyle = 'rgba(122,100,72,.6)'; x.beginPath(); for (const k of [0, 1, 2]) { x.moveTo(-s * (.02 + k * .05), -s * (.98 + k * .05)); x.quadraticCurveTo(s * .02 - k * s * .04, -s * (1.02 + k * .05), s * .05 - k * s * .05, -s * (.98 + k * .06)); } x.stroke(); // wrinkles on the dome
+  x.fillStyle = '#d8d4cc'; x.strokeStyle = '#8a8478'; x.beginPath(); x.moveTo(-s * .08, -s * .84); x.quadraticCurveTo(-s * .16, -s * .74, -s * .12, -s * .66); x.lineTo(-s * .06, -s * .7); x.closePath(); x.fill(); x.stroke(); // white side hair
+  x.beginPath(); x.moveTo(s * .02, -s * .7); x.quadraticCurveTo(s * .0, -s * .6, s * .06, -s * .56); x.quadraticCurveTo(s * .08, -s * .64, s * .1, -s * .69); x.closePath(); x.fill(); x.stroke(); // wispy beard
+  x.strokeStyle = '#2a2018'; x.lineWidth = Math.max(2, s * .014); x.beginPath(); x.moveTo(s * .0, -s * .85); x.lineTo(s * .09, -s * .82); x.stroke(); // a heavy, angry brow
+  x.fillStyle = '#fff6d0'; x.beginPath(); x.ellipse(s * .065, -s * .8, s * .022, s * .014, -.2, 0, 7); x.fill(); // glaring eye
+  x.fillStyle = laugh > .3 ? '#c02020' : '#2a1a10'; x.beginPath(); x.arc(s * .074, -s * .8, s * .009, 0, 7); x.fill();
+  x.fillStyle = '#d8b898'; x.strokeStyle = '#7a6448'; x.lineWidth = lw; x.beginPath(); x.moveTo(s * .1, -s * .79); x.quadraticCurveTo(s * .15, -s * .74, s * .11, -s * .72); x.closePath(); x.fill(); x.stroke(); // hooked nose
+  x.strokeStyle = '#4a2a1a'; x.lineWidth = Math.max(1.5, s * .01); x.beginPath(); // a sneer that widens into a sly grin when tapped
+  if (laugh > .3) { x.moveTo(s * .04, -s * .71); x.quadraticCurveTo(s * .08, -s * (.67 - laugh * .02), s * .12, -s * .71); } else { x.moveTo(s * .05, -s * .69); x.quadraticCurveTo(s * .08, -s * .71, s * .11, -s * .7); }
+  x.stroke();
+  x.lineWidth = lw; x.fillStyle = '#6a5a2a'; x.strokeStyle = '#2a2010';
+  if (aim) { // holding the cork gun level, firing across the stall
+    x.beginPath(); x.ellipse(s * .14, -s * .55, s * .1, s * .035, 0, 0, 7); x.fill(); x.stroke();
+    x.fillStyle = '#5a3a20'; x.fillRect(s * .1, -s * .585, s * .32, s * .03); x.fillRect(s * .12, -s * .56, s * .04, s * .06);
+    x.fillStyle = '#e8d4b8'; x.beginPath(); x.arc(s * .2, -s * .55, s * .025, 0, 7); x.fill();
+  } else { // walking with a long pipe
+    x.beginPath(); x.ellipse(s * .1, -s * .48, s * .045, s * .1, -.4, 0, 7); x.fill(); x.stroke();
+    x.strokeStyle = '#3a2a1a'; x.lineWidth = s * .012; x.beginPath(); x.moveTo(s * .13, -s * .42); x.lineTo(s * .3, -s * .52); x.stroke(); x.fillStyle = '#c9a24a'; x.fillRect(s * .29, -s * .56, s * .03, s * .04); x.lineWidth = lw;
+  }
 }
 function drawSkeleton(x, s, step, e = 0) { // a cartoon skeleton dancing; e = how far its bones have flown apart; feet at (0, 0)
   x.lineCap = 'round'; const bone = '#f4f2ea', edge = '#6a6878', sw = Math.sin(step) * .4;

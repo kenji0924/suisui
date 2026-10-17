@@ -528,6 +528,7 @@ const SND = (() => {
         case 'plesio':   tone('sine', [300, 520], 0, .6, .25, sfxBus, .05); tone('sine', [520, 380], .55, .8, .22, sfxBus, .05); tone('triangle', [600, 1040], 0, .6, .05); break;
         case 'mermaid':  [72, 76, 79, 84, 81, 79, 76, 79, 72].forEach((m, i) => { tone('sine', hz(m), i * .3, .5, .12, sfxBus, .05); tone('sine', hz(m) * 1.004, i * .3, .5, .05, sfxBus, .05); }); break;
         case 'submarine': for (let i = 0; i < 3; i++) tone('sine', 1480, i * .55, .9 - i * .2, .2 / (i + 1), sfxBus, .005); tone('sine', [300, 200], 0, .4, .1); break;
+        case 'whiteshark': case 'megalodon': for (let i = 0; i < 4; i++) tone('triangle', hz((kind === 'megalodon' ? 33 : 40) + (i % 2) * 3), i * .32, .28, .35); break;
         case 'angler':   tone('sine', [200, 1600], 0, .5, .12); [96, 103, 108].forEach((m, i) => tone('sine', hz(m), .4 + i * .08, .6, .08)); break;
         case 'mendako':  tone('sine', [300, 700], 0, .5, .15); tone('sine', [700, 500], .5, .4, .1); break;
         case 'gusoku':   for (let i = 0; i < 5; i++) tone('triangle', [500 - i * 60, 300 - i * 40], i * .1, .1, .12); break;
@@ -1386,30 +1387,37 @@ function drawVisitors(dt, layer) {
 }
 
 /* ---------- the shark: drawings older than LIFE get eaten ---------- */
-function sharkSprite(open) {
-  return sprite(360, 180, x => { // faces right
-    const body = '#7f97ad', line = '#2c3e50';
-    x.fillStyle = body; x.strokeStyle = line; x.lineWidth = 6;
-    x.beginPath(); x.moveTo(70, 90); x.lineTo(8, 22); x.quadraticCurveTo(40, 90, 8, 160); x.closePath(); x.fill(); x.stroke();
-    x.beginPath(); x.moveTo(150, 52); x.lineTo(185, 4); x.lineTo(215, 52); x.fill(); x.stroke();
-    x.beginPath(); x.moveTo(205, 118); x.lineTo(170, 168); x.lineTo(245, 122); x.fill(); x.stroke();
-    x.beginPath(); x.moveTo(60, 90); x.quadraticCurveTo(160, 30, 290, 52); x.quadraticCurveTo(352, 66, 350, 95);
-    x.quadraticCurveTo(345, 128, 270, 132); x.quadraticCurveTo(150, 140, 60, 90); x.fill(); x.stroke();
-    x.save(); x.clip(); x.fillStyle = '#eef3f6'; x.beginPath(); x.ellipse(250, 135, 120, 30, 0, 0, 7); x.fill(); x.restore();
-    x.beginPath(); x.moveTo(60, 90); x.quadraticCurveTo(160, 30, 290, 52); x.quadraticCurveTo(352, 66, 350, 95); x.quadraticCurveTo(345, 128, 270, 132); x.quadraticCurveTo(150, 140, 60, 90); x.stroke();
-    x.strokeStyle = line; x.lineWidth = 3; for (const g of [228, 240, 252]) { x.beginPath(); x.moveTo(g, 78); x.quadraticCurveTo(g - 5, 92, g, 106); x.stroke(); }
-    x.fillStyle = '#fff'; x.beginPath(); x.arc(300, 76, 11, 0, 7); x.fill(); x.fillStyle = '#111'; x.beginPath(); x.arc(303, 77, 6, 0, 7); x.fill();
-    x.fillStyle = '#fff'; x.beginPath(); x.arc(305, 74, 2, 0, 7); x.fill();
+function sharkSprite(open, mega = false) { // great white (or megalodon in the deep sea), faces right
+  return sprite(360, 180, x => {
+    const body = mega ? '#56606e' : '#7d8c9c', line = mega ? '#1b2129' : '#2c3e50', belly = mega ? '#d8dde2' : '#f4f6f8';
+    x.lineJoin = x.lineCap = 'round'; x.fillStyle = body; x.strokeStyle = line; x.lineWidth = 6;
+    x.beginPath(); x.moveTo(72, 90); x.lineTo(14, 12); x.quadraticCurveTo(36, 70, 30, 92); x.quadraticCurveTo(38, 120, 20, 162); x.closePath(); x.fill(); x.stroke(); // tall crescent tail
+    x.beginPath(); x.moveTo(145, 54); x.quadraticCurveTo(170, 20, 190, 0); x.quadraticCurveTo(196, 30, 222, 52); x.fill(); x.stroke(); // dorsal fin
+    x.beginPath(); x.moveTo(205, 120); x.quadraticCurveTo(185, 150, 160, 172); x.quadraticCurveTo(215, 150, 248, 124); x.fill(); x.stroke(); // pectoral fin
+    const bodyPath = () => { x.beginPath(); x.moveTo(62, 90); x.quadraticCurveTo(160, 28, 285, 48); x.quadraticCurveTo(345, 60, 356, 88); x.quadraticCurveTo(350, 122, 280, 132); x.quadraticCurveTo(150, 142, 62, 90); };
+    bodyPath(); x.fill(); x.stroke();
+    x.save(); bodyPath(); x.clip(); x.fillStyle = belly; x.beginPath(); x.moveTo(60, 96); // white belly with the zig-zag line great whites have
+    for (let k = 0; k <= 12; k++) x.lineTo(70 + k * 24, 104 + (k % 2 ? -7 : 5) - k * 1.2); x.lineTo(360, 180); x.lineTo(60, 180); x.closePath(); x.fill();
+    if (mega) { x.strokeStyle = 'rgba(200,210,220,.5)'; x.lineWidth = 3; for (const [a, b, c, d] of [[150, 62, 190, 80], [160, 70, 200, 86], [250, 60, 270, 72]]) { x.beginPath(); x.moveTo(a, b); x.lineTo(c, d); x.stroke(); } } // old scars
+    x.restore();
+    bodyPath(); x.lineWidth = 6; x.strokeStyle = line; x.stroke();
+    x.lineWidth = 3; for (const g of [222, 232, 242, 252, 262]) { x.beginPath(); x.moveTo(g, 80); x.quadraticCurveTo(g - 5, 94, g, 108); x.stroke(); } // five gill slits
+    x.fillStyle = '#0d0d10'; x.beginPath(); x.arc(304, 74, mega ? 8 : 9, 0, 7); x.fill(); // the dark eye
+    x.fillStyle = mega ? '#ffcf5a' : '#fff'; x.beginPath(); x.arc(306, 72, 2.5, 0, 7); x.fill();
     if (open) {
       x.fillStyle = '#7a1f2b'; x.strokeStyle = line; x.lineWidth = 5;
-      x.beginPath(); x.moveTo(290, 106); x.lineTo(358, 84); x.lineTo(358, 138); x.closePath(); x.fill(); x.stroke();
-      x.fillStyle = '#fff'; for (let i = 0; i < 4; i++) { const tx = 300 + i * 14; x.beginPath(); x.moveTo(tx, 104 - i * 4.4); x.lineTo(tx + 7, 112 - i * 4.4); x.lineTo(tx + 12, 101 - i * 4.4); x.fill(); x.beginPath(); x.moveTo(tx, 108 + i * 5.5); x.lineTo(tx + 7, 100 + i * 5.5); x.lineTo(tx + 12, 112 + i * 5.5); x.fill(); }
+      const top = mega ? 78 : 86, bot = mega ? 150 : 138;
+      x.beginPath(); x.moveTo(280, 106); x.lineTo(358, top); x.lineTo(358, bot); x.closePath(); x.fill(); x.stroke();
+      x.fillStyle = '#fff'; const n = mega ? 6 : 4, st = 78 / n;
+      for (let i = 0; i < n; i++) { const tx = 288 + i * st, ut = 106 - (106 - top) * (i + .5) / n, lt = 106 + (bot - 106) * (i + .5) / n;
+        x.beginPath(); x.moveTo(tx, ut - 2); x.lineTo(tx + st * .5, ut + 9); x.lineTo(tx + st, ut - 3); x.fill(); x.beginPath(); x.moveTo(tx, lt + 2); x.lineTo(tx + st * .5, lt - 9); x.lineTo(tx + st, lt + 3); x.fill(); }
     } else {
-      x.strokeStyle = line; x.lineWidth = 4; x.beginPath(); x.moveTo(300, 108); x.quadraticCurveTo(325, 116, 344, 104); x.stroke();
+      x.strokeStyle = line; x.lineWidth = 4; x.beginPath(); x.moveTo(292, 108); x.quadraticCurveTo(322, 118, 348, 102); x.stroke();
+      x.fillStyle = '#fff'; for (let i = 0; i < (mega ? 6 : 4); i++) { const tx = 300 + i * 8; x.beginPath(); x.moveTo(tx, 110 + i * .2 - (i > 2 ? i - 2 : 0) * 2); x.lineTo(tx + 3, 117 - (i > 2 ? i - 2 : 0) * 2); x.lineTo(tx + 6, 110 - (i > 2 ? i - 2 : 0) * 2); x.fill(); } // a peek of teeth
     }
   });
 }
-const SHARK = [sharkSprite(false), sharkSprite(true)];
+const SHARK = [sharkSprite(false), sharkSprite(true)], MEGA = [sharkSprite(false, true), sharkSprite(true, true)];
 let shark = null;
 const pops = [];
 function expired() { return creatures.filter(c => c.user && clock - c.born >= LIFE && !c.hidden && !c.abduct && !c.drop && !c.ascend); }
@@ -1417,10 +1425,11 @@ function checkShark() {
   const due = expired();
   for (const c of due) c.fear = true;
   if (shark || !due.length) return;
-  const h = Math.min(W, H) * .3, w = h * 2, v = due[0];
+  const mega = DEEP, h = Math.min(W, H) * (mega ? .42 : .3), w = h * 2, v = due[0];
   const fromLeft = v.x > W / 2; // come in from the far side, so everyone can see it coming
-  SND.sharkComes();
-  shark = {w, h, x: fromLeft ? -w / 2 : W + w / 2, y: v.y, vx: fromLeft ? 1 : -1, vy: 0, face: fromLeft ? 1 : -1, tilt: 0, target: null, chomp: 0, t: 0};
+  SND.sharkComes(); MET.add('sea', mega ? 'megalodon' : 'whiteshark');
+  if (mega) pops.push({x: W / 2, y: H * .2, a: 1, text: 'メガロドンだ〜！'});
+  shark = {mega, w, h, x: fromLeft ? -w / 2 : W + w / 2, y: v.y, vx: fromLeft ? 1 : -1, vy: 0, face: fromLeft ? 1 : -1, tilt: 0, target: null, chomp: 0, t: 0};
 }
 function updateShark(dt) {
   const s = shark; if (!s) return;
@@ -1470,7 +1479,7 @@ function updateShark(dt) {
   ctx.scale(s.face, 1); ctx.rotate(s.tilt);
   const wag = Math.sin(s.t * 10) * .04; ctx.scale(1 + wag, 1);
   ctx.shadowColor = 'rgba(0,10,20,.35)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 10;
-  ctx.drawImage(SHARK[open || s.chomp > 0 ? 1 : 0], -s.w / 2, -s.h / 2, s.w, s.h);
+  ctx.drawImage((s.mega ? MEGA : SHARK)[open || s.chomp > 0 ? 1 : 0], -s.w / 2, -s.h / 2, s.w, s.h);
   ctx.restore();
 }
 function drawPops(dt) {
@@ -2445,6 +2454,7 @@ const GUESTS = {
     ['manta', 'マンタ', 'つばさみたいな ヒレで そらを とぶように およぐ'], ['clione', 'クリオネ', '「りゅうひょうの てんし」と よばれているよ'],
     ['oarfish', 'リュウグウノツカイ', '5メートルより ながく なる ふしぎな さかな'], ['kappa', 'カッパ', 'あたまの おさらが かわくと げんきが なくなる'], ['plesio', 'プレシオサウルス', 'きょうりゅうの じだいの うみの なかま'],
     ['submarine', 'せんすいかん', 'ふかい うみまで もぐれる のりもの'], ['mermaid', 'にんぎょひめ', 'うみの なかで いちばん うたが じょうず'],
+    ['whiteshark', 'ホオジロザメ', 'うみの ハンター。3ぷんたった えを たべに くるよ'], ['megalodon', 'メガロドン', 'むかし いた きょだいな サメ。しんかいに ひそんでいるかも…'],
     ['angler', 'チョウチンアンコウ', 'あたまの ちょうちんを ひからせて えさを よぶよ'], ['mendako', 'メンダコ', 'みみみたいな ヒレで ぱたぱた およぐ'], ['gusoku', 'ダイオウグソクムシ', 'なんねんも ごはんを たべなくても へいき'], ['hotaruika', 'ホタルイカ', 'からだが あおく ひかる ちいさな イカ'],
     ['daiouika', 'ダイオウイカ', 'せかいで いちばん おおきい なかまの イカ'], ['demenigisu', 'デメニギス', 'あたまが すきとおった ふしぎな さかな'], ['takaashi', 'タカアシガニ', 'あしを ひろげると 3メートルにも なる カニ']],
   dino: [['brachio', 'ブラキオサウルス', 'たかい きの はっぱも とどく ながい くび'], ['trex', 'ティラノサウルス', 'きょうりゅうの おうさま。ガオー！'], ['stego', 'ステゴサウルス', 'せなかの いたで からだを あたためたよ'], ['tricera', 'トリケラトプス', '3ぼんの つので みを まもるよ'],
@@ -2468,6 +2478,7 @@ const MET = (() => {
 const guestThumbs = {}; // world:kind -> image URL
 function guestThumb(kind) { // draw one visitor on its own (the tank is hidden behind the book) and cut it out
   const key = WORLD + ':' + kind; if (guestThumbs[key] !== undefined) return guestThumbs[key];
+  if (kind === 'whiteshark' || kind === 'megalodon') return guestThumbs[key] = (kind === 'megalodon' ? MEGA : SHARK)[1].toDataURL();
   const keep = {v: visitors.splice(0), c: creatures.splice(0), fx: fx.length, b: bubbles.length, p: pops.length, r: ripples.length, shake};
   const mute = {}; for (const k in SND) if (typeof SND[k] === 'function' && k !== 'init' && k !== 'isOn' && k !== 'setOn') { mute[k] = SND[k]; SND[k] = () => {}; }
   let url = null; const rW = W, rH = H, V = 1000, f = Math.min(rW, rH) / V;
